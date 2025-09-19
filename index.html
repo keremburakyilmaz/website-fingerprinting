@@ -46,49 +46,44 @@
       return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
     }
 
-    // ===========================================================
-    // HIGH ENTROPY FEATURES (Most Identifying)
-    // ===========================================================
+    // ========= HIGH ENTROPY FEATURES =========
+    // These are the strongest identifiers – usually enough to uniquely identify a device.
 
-    // 1. Canvas Fingerprint (GPU/driver/font rendering differences)
-    (async function canvasFingerprint() {
+    // 1. Canvas fingerprint: draw text/images and hash rendering differences
+    (async function canvasFP() {
       try {
-        const canvas = document.createElement('canvas');
-        canvas.width = 240; canvas.height = 60;
-        const ctx = canvas.getContext('2d');
-        ctx.textBaseline = "top";
-        ctx.font = "16px 'Arial'";
-        ctx.fillText("Hello Fingerprint!", 2, 2);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data.buffer;
-        const hash = await sha256Hex(imageData);
-        addFeature("Canvas Fingerprint (SHA-256)", hash);
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        ctx.font = "16px Arial";
+        ctx.fillText("Canvas FP Test 😃 測試", 10, 20);
+        const hash = await sha256Hex(ctx.getImageData(0, 0, 200, 50).data.buffer);
+        addFeature("Canvas Fingerprint", hash);
       } catch {
         addFeature("Canvas Fingerprint", "Blocked");
       }
     })();
 
-    // 2. WebGL Fingerprint (GPU vendor, renderer, supported extensions)
-    (function webglFingerprint() {
+    // 2. WebGL fingerprint: GPU vendor, renderer, shader precision
+    (function webglFP() {
       try {
-        const canvas = document.createElement('canvas');
-        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        const gl = document.createElement("canvas").getContext("webgl");
         if (!gl) return addFeature("WebGL", "Not supported");
         const ext = gl.getExtension("WEBGL_debug_renderer_info");
         const vendor = ext ? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) : "N/A";
         const renderer = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : "N/A";
         addFeature("WebGL Vendor", vendor);
         addFeature("WebGL Renderer", renderer);
-        addFeature("WebGL Extensions (sample)", (gl.getSupportedExtensions() || []).slice(0,10).join(", "));
+        addFeature("WebGL Shader Precision", gl.getShaderPrecisionFormat(gl.VERTEX_SHADER, gl.HIGH_FLOAT));
       } catch {
         addFeature("WebGL", "Blocked");
       }
     })();
 
-    // 3. AudioContext Fingerprint (subtle differences in audio processing chain)
-    (async function audioFingerprint() {
+    // 3. Audio fingerprint: subtle differences in sound processing
+    (async function audioFP() {
       try {
         const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-        if (!OfflineCtx) return addFeature("AudioContext", "Not supported");
+        if (!OfflineCtx) return addFeature("Audio Fingerprint", "Not supported");
         const ctx = new OfflineCtx(1, 44100, 44100);
         const osc = ctx.createOscillator();
         osc.connect(ctx.destination);
@@ -96,75 +91,74 @@
         ctx.startRendering();
         const rendered = await new Promise(res => ctx.oncomplete = e => res(e.renderedBuffer));
         const hash = await sha256Hex(rendered.getChannelData(0).buffer);
-        addFeature("AudioContext Fingerprint (SHA-256)", hash);
+        addFeature("Audio Fingerprint", hash);
       } catch {
-        addFeature("AudioContext", "Blocked");
+        addFeature("Audio Fingerprint", "Blocked");
       }
     })();
 
-    // 4. Fonts / Font Rendering Differences
+    // 4. Fonts: detect installed fonts by measuring text rendering widths
     (function fontProbe() {
-      try {
-        const testString = "mmmmmmmmmlliI@@##";
-        const baseFonts = ["monospace", "serif", "sans-serif"];
-        const fontsToTest = ["Arial", "Times New Roman", "Courier New", "Roboto"];
-        function getWidth(font) {
-          const span = document.createElement("span");
-          span.style.font = "16px " + font;
-          span.textContent = testString;
-          document.body.appendChild(span);
-          const w = span.getBoundingClientRect().width;
-          document.body.removeChild(span);
-          return w;
-        }
-        const baseline = {};
-        baseFonts.forEach(f => baseline[f] = getWidth(f));
-        const detected = fontsToTest.filter(f => {
-          const w = getWidth(f + ", " + baseFonts.join(","));
-          return !baseFonts.some(b => Math.abs(w - baseline[b]) < 0.1);
-        });
-        addFeature("Detected Fonts (sample)", detected.join(", ") || "None");
-      } catch {
-        addFeature("Fonts", "Blocked");
+      const baseFonts = ["monospace","serif","sans-serif"];
+      const fontsToTest = ["Arial","Times New Roman","Courier New","Roboto","Comic Sans MS"];
+      function measure(font) {
+        const span = document.createElement("span");
+        span.style.font = "16px " + font;
+        span.textContent = "mmmmmmmmmlliI";
+        document.body.appendChild(span);
+        const w = span.getBoundingClientRect().width;
+        document.body.removeChild(span);
+        return w;
       }
+      const baseline = {}; baseFonts.forEach(f => baseline[f] = measure(f));
+      const detected = [];
+      fontsToTest.forEach(f => {
+        const w = measure(f + "," + baseFonts.join(","));
+        if (!baseFonts.some(b => Math.abs(w - baseline[b]) < 0.1)) detected.push(f);
+      });
+      addFeature("Detected Fonts", detected);
     })();
 
-    // 5. User-Agent (browser + OS + version)
+    // 5. User-Agent: browser + OS info
     addFeature("User-Agent", navigator.userAgent);
 
-    // ===========================================================
-    // MEDIUM ENTROPY FEATURES
-    // ===========================================================
+    // ========= MEDIUM ENTROPY FEATURES =========
+    // Adds uniqueness but weaker than above
 
-    // 6. Screen Resolution + DPR + Color Depth
+    // Screen / display properties
     addFeature("Screen Resolution", screen.width + " x " + screen.height);
     addFeature("Device Pixel Ratio", window.devicePixelRatio);
     addFeature("Color Depth", screen.colorDepth);
 
-    // 7. Time Zone & Locale
+    // Time zone & locale
     addFeature("Time Zone", Intl.DateTimeFormat().resolvedOptions().timeZone);
     addFeature("Locale", Intl.NumberFormat().resolvedOptions().locale);
 
-    // 8. Platform String (OS architecture)
+    // Platform, CPU, RAM
     addFeature("Platform", navigator.platform);
-
-    // 9. Hardware Concurrency (logical cores)
     addFeature("CPU Cores", navigator.hardwareConcurrency || "N/A");
+    addFeature("Device Memory (GB)", navigator.deviceMemory || "N/A");
 
-    // 10. Device Memory (RAM, in GB)
-    addFeature("Device Memory", navigator.deviceMemory || "N/A");
+    // Multi-monitor info
+    addFeature("Multi-Monitor Position", `availLeft=${screen.availLeft || 0}, availTop=${screen.availTop || 0}`);
 
-    // ===========================================================
-    // NETWORK FEATURES
-    // ===========================================================
+    // Media devices (mics, cams, speakers)
+    (async function mediaDevices() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        addFeature("Media Devices", devices.map(d => `${d.kind}: ${d.label || "hidden"}`));
+      } catch {
+        addFeature("Media Devices", "Blocked or denied");
+      }
+    })();
 
-    // 11. WebRTC IP Candidates (may reveal local/public IPs if not blocked)
+    // WebRTC IP discovery (may expose local/public IPs if not blocked)
     (function webrtcIPs() {
       try {
         const pc = new RTCPeerConnection();
         pc.createDataChannel("");
-        pc.onicecandidate = (e) => {
-          if (e.candidate) addFeature("WebRTC ICE Candidate", e.candidate.candidate);
+        pc.onicecandidate = e => {
+          if (e.candidate) addFeature("WebRTC Candidate", e.candidate.candidate);
         };
         pc.createOffer().then(o => pc.setLocalDescription(o));
         setTimeout(() => pc.close(), 1500);
@@ -173,35 +167,67 @@
       }
     })();
 
-    // ===========================================================
-    // LOWER ENTROPY / CONTEXTUAL
-    // ===========================================================
+    // ========= LOWER ENTROPY / CONTEXTUAL =========
+    // Adds small bits of uniqueness or context, but not strong identifiers
 
+    addFeature("Cookies Enabled", navigator.cookieEnabled);
     addFeature("Accept-Language", navigator.language);
     addFeature("Do Not Track", navigator.doNotTrack || "N/A");
-    addFeature("Plugins (sample)", (navigator.plugins && navigator.plugins.length) ? navigator.plugins[0].name : "None");
 
-    // Behavioral samples (mouse/key timing – demo only)
-    (function behavioralSample() {
-      const mouseMoves = [];
-      window.addEventListener("mousemove", e => {
-        if (mouseMoves.length < 5) mouseMoves.push(`${e.clientX},${e.clientY}`);
-      });
-      setTimeout(() => addFeature("Mouse Movement Sample", mouseMoves.join(" | ") || "No data"), 3000);
+    try {
+      const plugins = Array.from(navigator.plugins || []).map(p => p.name);
+      addFeature("Plugins", plugins.length ? plugins : "None");
+    } catch {
+      addFeature("Plugins", "Blocked");
+    }
+
+    // Behavioral samples: mouse, key, scroll
+    (function behavior() {
+      const mouse = [], keys = [], scrolls = [];
+      window.addEventListener("mousemove", e => { if (mouse.length<3) mouse.push([e.clientX,e.clientY]); });
+      window.addEventListener("keydown", e => { if (keys.length<3) keys.push(e.key); });
+      window.addEventListener("scroll", e => { if (scrolls.length<3) scrolls.push([scrollX,scrollY]); });
+      setTimeout(() => {
+        addFeature("Mouse Sample", mouse);
+        addFeature("Key Press Sample", keys);
+        addFeature("Scroll Sample", scrolls);
+      }, 4000);
     })();
 
-    // WebAssembly performance micro-benchmark
+    // Orientation & motion sensors (mobile devices)
+    window.addEventListener("deviceorientation", e => {
+      addFeature("Device Orientation", {alpha:e.alpha,beta:e.beta,gamma:e.gamma});
+    }, {once:true});
+
+    window.addEventListener("devicemotion", e => {
+      addFeature("Device Motion", {
+        acc: e.acceleration,
+        accG: e.accelerationIncludingGravity,
+        rot: e.rotationRate
+      });
+    }, {once:true});
+
+    // Touch gestures (sample logs)
+    const touches = [];
+    window.addEventListener("touchstart", e => touches.push("start " + e.touches.length));
+    window.addEventListener("touchend", e => touches.push("end"));
+    setTimeout(() => addFeature("Touch Gestures Sample", touches), 5000);
+
+    // WASM performance micro-benchmark
     (async function wasmPerf() {
       try {
         const start = performance.now();
         const mod = await WebAssembly.compile(new Uint8Array([0,97,115,109,1,0,0,0]));
         await WebAssembly.instantiate(mod);
-        const duration = performance.now() - start;
-        addFeature("WASM Compile Time (ms)", duration.toFixed(2));
+        addFeature("WASM Compile Time (ms)", (performance.now()-start).toFixed(2));
       } catch {
-        addFeature("WebAssembly Perf", "Not supported");
+        addFeature("WASM Perf", "Not supported");
       }
     })();
+
+    // TLS / DNS / Cert info – only available to network observers
+    addFeature("TLS / JA3", "Unavailable in browser JS");
+    addFeature("SNI / DNS / Cert Info", "Unavailable in browser JS");
 
   </script>
 </body>
