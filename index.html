@@ -1,48 +1,290 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My List</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Fingerprint Features</title>
+
+  <!-- keep your CSS file -->
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header>
-        <h1>My List</h1>
-    </header>
-    
-    <main>
-        <div class="container">
-            <ul class="list">
-                <li class="card">
-                    <h3>Task 1</h3>
-                    <p>Complete the project proposal and submit it by Friday.</p>
-                </li>
-                <li class="card">
-                    <h3>Task 2</h3>
-                    <p>Review the quarterly reports and prepare summary presentation.</p>
-                </li>
-                <li class="card">
-                    <h3>Task 3</h3>
-                    <p>Schedule team meeting for next week's sprint planning.</p>
-                </li>
-                <li class="card">
-                    <h3>Task 4</h3>
-                    <p>Update the documentation for the new API endpoints.</p>
-                </li>
-                <li class="card">
-                    <h3>Task 5</h3>
-                    <p>Conduct user testing sessions for the mobile app prototype.</p>
-                </li>
-                <li class="card">
-                    <h3>Task 6</h3>
-                    <p>Prepare budget proposal for the upcoming fiscal year.</p>
-                </li>
-            </ul>
-        </div>
-    </main>
+  <header>
+    <h1>Fingerprint Features</h1>
+  </header>
+
+  <main>
+    <div class="container">
+      <ul id="featureList" class="list"></ul>
+    </div>
+  </main>
+
+  <script>
+    // Utility: append a feature card to the list
+    function addFeature(title, value) {
+      const ul = document.getElementById('featureList');
+      const li = document.createElement('li');
+      li.className = 'card';
+      const safeVal = (typeof value === 'string' || typeof value === 'number')
+        ? String(value)
+        : JSON.stringify(value, null, 2);
+      li.innerHTML = '<h3>' + escapeHtml(title) + '</h3><pre>' + escapeHtml(safeVal) + '</pre>';
+      ul.appendChild(li);
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+    }
+
+    // SHA-256 helper (returns hex)
+    // used to turn high-entropy raw data (like canvas pixel bytes or audio samples) into a stable short identifier that can be displayed or compared
+    async function sha256Hex(input) {
+      const data = (typeof input === 'string') ? new TextEncoder().encode(input) : input;
+      const hash = await crypto.subtle.digest('SHA-256', data);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+    }
+
+    // 1) System & Browser Environment
+    addFeature("Cookies Enabled", navigator.cookieEnabled);
+    addFeature('User-Agent', navigator.userAgent || 'N/A');
+    addFeature('Accept-Language (preferred)', navigator.language || navigator.userLanguage || 'N/A');
+    addFeature('Time zone', Intl.DateTimeFormat().resolvedOptions().timeZone || 'N/A');
+    addFeature('Locale / Numbering', Intl.NumberFormat().resolvedOptions().locale || 'N/A');
+    addFeature('Platform (navigator.platform)', navigator.platform || 'N/A');
+    addFeature('Do Not Track', navigator.doNotTrack || navigator.msDoNotTrack || 'N/A');
+    addFeature('Browser vendor/version (navigator.appVersion)', navigator.appVersion || 'N/A');
+
+    // Installed plugins / mime types (may be empty in modern browsers)
+    try {
+      const plugins = Array.from(navigator.plugins || []).map(p => p.name + (p.version ? ' v'+p.version : ''));
+      addFeature('Installed plugins / MIME types', plugins.length ? plugins : 'None / blocked');
+    } catch (e) {
+      addFeature('Installed plugins / MIME types', 'Error / blocked');
+    }
+
+    // 2) Hardware & Display
+    addFeature('Screen resolution', screen.width + ' x ' + screen.height);
+    addFeature('Available screen', (screen.availWidth || 'N/A') + ' x ' + (screen.availHeight || 'N/A'));
+    addFeature('Color depth', screen.colorDepth || 'N/A');
+    addFeature('Device pixel ratio (DPR)', window.devicePixelRatio || 'N/A');
+    addFeature('Window inner size', window.innerWidth + ' x ' + window.innerHeight);
+    addFeature('Hardware concurrency (logical cores)', navigator.hardwareConcurrency || 'N/A');
+    addFeature('Device memory (GB) (navigator.deviceMemory)', navigator.deviceMemory || 'N/A');
+
+    // 3) Graphics & Rendering -> Canvas fingerprint (hash of pixel bytes)
+    (async function canvasFingerprint() {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 240;
+        canvas.height = 60;
+        const ctx = canvas.getContext('2d');
+
+        // drawing with multiple fonts/styles to maximize differences
+        ctx.fillStyle = '#f60';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.textBaseline = 'top';
+        ctx.font = '16px "Arial"';
+        ctx.fillStyle = '#069';
+        ctx.fillText('FingerprintJS Demo — 𝕏 𝔁', 10, 10);
+
+        ctx.font = '14px "Times New Roman"';
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.fillText('– 測試 – тест', 10, 30);
+
+        // get raw pixel data
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data.buffer;
+        const hash = await sha256Hex(imageData);
+        addFeature('Canvas fingerprint (SHA-256)', hash);
+      } catch (e) {
+        addFeature('Canvas fingerprint', 'Blocked or not available');
+      }
+    })();
+
+    // 4) WebGL fingerprint: vendor / renderer / extensions
+    (function webglFingerprint() {
+      try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (!gl) {
+          addFeature('WebGL', 'Not supported');
+          return;
+        }
+        const ext = gl.getExtension('WEBGL_debug_renderer_info');
+        const vendor = ext ? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) : 'Unavailable';
+        const renderer = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : 'Unavailable';
+        const supported = (gl.getSupportedExtensions() || []).slice(0, 50); // cap length
+        addFeature('WebGL vendor', vendor);
+        addFeature('WebGL renderer', renderer);
+        addFeature('WebGL extensions (sample)', supported.length ? supported.join(', ') : 'None / blocked');
+      } catch (e) {
+        addFeature('WebGL', 'Blocked or error');
+      }
+    })();
+
+    // 5) AudioContext fingerprint (uses OfflineAudioContext to avoid audible noise)
+    (async function audioFingerprint() {
+      try {
+        const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+        if (!OfflineCtx) {
+          addFeature('AudioContext', 'OfflineAudioContext not supported');
+          return;
+        }
+        // small offline graph that produces a buffer we can hash
+        const ctx = new OfflineCtx(1, 44100, 44100);
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 440;
+        gain.gain.value = 0.0001; // keep very quiet
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(0);
+        ctx.startRendering();
+        const rendered = await new Promise((res) => ctx.oncomplete = (e) => res(e.renderedBuffer));
+        // take a slice of the channel data to hash
+        const channel = rendered.getChannelData(0).slice(1000, 6000);
+        const hash = await sha256Hex(channel.buffer);
+        addFeature('AudioContext fingerprint (SHA-256 sample)', hash);
+      } catch (e) {
+        addFeature('AudioContext', 'Blocked or error');
+      }
+    })();
+
+    // 6) Fonts & Text rendering (basic probe): measure width differences to detect presence
+    (function fontProbe() {
+      try {
+        const testString = 'mmmmmmmmmmlliI@@##中文عربي';
+        const baseFonts = ['monospace', 'serif', 'sans-serif'];
+        const fontsToTest = ['Arial','Times New Roman','Courier New','Helvetica','Comic Sans MS','Roboto','Noto Sans','NonExistentFont123'];
+
+        // helper to measure width with a given font fallback
+        function getWidth(font) {
+          const span = document.createElement('span');
+          span.style.position = 'absolute';
+          span.style.left = '-9999px';
+          span.style.fontSize = '16px';
+          span.style.fontFamily = font;
+          span.textContent = testString;
+          document.body.appendChild(span);
+          const w = span.getBoundingClientRect().width;
+          document.body.removeChild(span);
+          return w;
+        }
+
+        // baseline widths for base fonts
+        const baseline = {};
+        baseFonts.forEach(b => baseline[b] = getWidth(b));
+
+        const detected = {};
+        fontsToTest.forEach(f => {
+          const w = getWidth(`'${f}',` + baseFonts.join(','));
+          // if width differs from all base fonts, we assume font exists
+          const exists = !baseFonts.some(b => Math.abs(w - baseline[b]) < 0.1);
+          detected[f] = exists ? 'likely installed' : 'not detected';
+        });
+        addFeature('Font probe (sample results)', detected);
+      } catch (e) {
+        addFeature('Font probe', 'Blocked or error');
+      }
+    })();
+
+    // 7) WebRTC local IPs / ICE candidates (may be blocked)
+    (function webrtcIPs() {
+      try {
+        const ips = new Set();
+        const pc = new RTCPeerConnection({iceServers:[]});
+        // create a dummy data channel to trigger ICE
+        try { pc.createDataChannel(''); } catch(e){}
+
+        pc.onicecandidate = (evt) => {
+          if (!evt || !evt.candidate) return;
+          const c = evt.candidate.candidate || '';
+          // candidate string contains ip:port like "candidate:... 192.168.1.5  ..."
+          c.split(' ').forEach(part => {
+            // crude IP match
+            if (/^([0-9]{1,3}\.){3}[0-9]{1,3}$/.test(part)) ips.add(part);
+          });
+          addFeature('WebRTC ICE candidate (raw)', c);
+        };
+
+        pc.createOffer()
+          .then(offer => pc.setLocalDescription(offer))
+          .catch(err => addFeature('WebRTC', 'Offer failed: ' + String(err)));
+
+        // gather for a short time then close
+        setTimeout(() => {
+          pc.close();
+          addFeature('WebRTC discovered IPs (sample)', Array.from(ips));
+        }, 1500);
+      } catch (e) {
+        addFeature('WebRTC', 'Blocked or not supported');
+      }
+    })();
+
+    // 8) Network & TLS (client JS cannot access TLS handshake fields like JA3).
+    addFeature('TLS / JA3 fingerprint', 'Unavailable in browser JS (requires network-level capture)');
+    addFeature('SNI / Certificate info', 'Unavailable in browser JS (requires network-level capture)');
+
+    // 9) Behavioral & Interaction (collect small sample: first few mousemoves / key timings)
+    (function behavioralSample() {
+      const mouseSamples = [];
+      const keySamples = [];
+      function onMouse(e) {
+        if (mouseSamples.length < 20) {
+          mouseSamples.push({x: e.clientX, y: e.clientY, t: Date.now()});
+        } else {
+          window.removeEventListener('mousemove', onMouse);
+        }
+      }
+      function onKey(e) {
+        if (keySamples.length < 10) {
+          keySamples.push({k: e.key, t: Date.now()});
+        } else {
+          window.removeEventListener('keydown', onKey);
+        }
+      }
+      window.addEventListener('mousemove', onMouse);
+      window.addEventListener('keydown', onKey);
+      // show the captured sample after 4 seconds
+      setTimeout(() => {
+        addFeature('Behavioral sample (mouse moves)', mouseSamples.length ? mouseSamples : 'No mouse events captured');
+        addFeature('Behavioral sample (key presses)', keySamples.length ? keySamples : 'No key events captured');
+      }, 4000);
+    })();
+
+    // 10) WebAssembly / Performance micro-benchmark (simple time measurement)
+    (async function wasmPerf() {
+      try {
+        // trivial WASM creation to measure compile time
+        const start = performance.now();
+        // small module: returns 42
+        const bin = new Uint8Array([
+          0x00,0x61,0x73,0x6d, // \0asm
+          0x01,0x00,0x00,0x00, // version
+          // Type section
+          0x01,0x07,0x01,0x60,0x00,0x01,0x7f,
+          // Function section
+          0x03,0x02,0x01,0x00,
+          // Export section
+          0x07,0x07,0x01,0x03,0x66,0x6e,0x31,0x00,0x00,
+          // Code section
+          0x0a,0x06,0x01,0x04,0x00,0x41,0x2a,0x0b
+        ]);
+        const mod = await WebAssembly.compile(bin);
+        const inst = await WebAssembly.instantiate(mod);
+        const duration = performance.now() - start;
+        addFeature('WASM compile+instantiate time (ms)', duration.toFixed(2));
+      } catch (e) {
+        addFeature('WebAssembly perf', 'Blocked or not supported');
+      }
+    })();
+
+    // 11) Notes for features not directly accessible via JS
+    addFeature('TLS / DNS / Certificate notes', 'TLS JA3, SNI, DNS queries and certificate chain are network-level features and require packet capture or an upstream observer (e.g., server / proxy) to compute.');
+
+  </script>
 </body>
 </html>
