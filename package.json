@@ -13,6 +13,20 @@
   "dependencies": {
     "ejs": "^3.1.10",
     "express": "^5.1.0",
-    "sqlite3": "^5.1.7"
-  }
+    "fs-extra": "^11.3.2",
+    "playwright": "^1.55.0",
+    "sqlite3": "^5.1.7",
+    "yargs": "^18.0.0"
+  },
+  "directories": {
+    "lib": "lib"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/keremburakyilmaz/website-fingerprinting.git"
+  },
+  "bugs": {
+    "url": "https://github.com/keremburakyilmaz/website-fingerprinting/issues"
+  },
+  "homepage": "https://github.com/keremburakyilmaz/website-fingerprinting#readme"
 }

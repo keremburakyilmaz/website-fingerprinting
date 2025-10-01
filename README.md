@@ -10,6 +10,13 @@ Website is hosted on: http://localhost:3000
 
 ## Docker deployment
 ```
-docker compose up -d
+docker-compose build --no-cache client
+docker-compose up -d
 ```
+This will run both server and client
 Website is hosted on: http://localhost:80
+
+To get interactive terminal of client:
+```
+docker-compose run client bash
+```
