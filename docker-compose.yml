@@ -8,13 +8,3 @@ services:
     read_only: true
     volumes:
       - ./db:/app/db
-
-  client:
-    platform: linux/amd64
-    build:
-      context: ./website-calls
-      dockerfile: Dockerfile
-    depends_on:
-      - fingerprinting
-    stdin_open: true
-    tty: true
