@@ -1,0 +1,11 @@
+{
+  "timestamp": "2025-10-03T17:11:01.664382",
+  "browser": "chrome",
+  "privacy_max": false,
+  "incognito": false,
+  "extensions": [
+    "ublock origin (lite)",
+    "privacy badger",
+    "noscript"
+  ]
+}

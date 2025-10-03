@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 """
 Features:
-  - Open a target URL in a chosen browser: chrome|brave|firefox
-  - Collect fingerprinting features and output as JSON (page_body.json)
-  - Exit code 3 when fingerprint JSON not found, 1 on other errors.
+    - Open a target URL in a chosen browser: chrome|brave|firefox
+    - Collect fingerprinting features and output as JSON (page_body.json)
+    - Output a second config JSON (call_config.json) with run settings
+    - Exit code 3 when fingerprint JSON not found, 1 on other errors.
 
 Example usage:
-    python3 show_fp_local.py --browser chrome --url http://localhost:80
-
+        python3 show_fp_local.py --browser chrome --url http://localhost:80
+        python3 show_fp_local.py --browser brave --url http://localhost:80 --incognito --privacy-max
+        python3 show_fp_local.py --browser firefox --url http://localhost:80 --extension ./extensions/firefox-xpi/ublock_origin-1.66.4.xpi --extension ./extensions/firefox-xpi/privacy-badger-latest.xpi --extension ./extensions/firefox-xpi/canvasblocker-1.11.xpi --extension ./extensions/firefox-xpi/noscript-13.0.9.xpi  --incognito
+        python3 show_fp_local.py --browser chrome --url http://localhost:80 --extension ./extensions/chromium-crx/ublock_origin_lite.crx --extension ./extensions/chromium-crx/privacy-badger-chrome.crx --extension ./extensions/chromium-crx/NoScript.crx  --incognito
 Dependencies:
-    pip install -r requirements.txt
+        pip install -r requirements.txt
 """
 
 from __future__ import annotations
@@ -75,6 +78,7 @@ def build_driver(browser: str, headless: bool, privacy_max: bool = False, incogn
             options.add_argument("--enable-features=EnableDoNotTrack")
         for ext in extensions:
             if ext.endswith(".crx"):
+                # options.add_argument('--load-extension={ext}')
                 options.add_extension(ext)
         return webdriver.Chrome(options=options)
 
@@ -147,7 +151,6 @@ def build_driver(browser: str, headless: bool, privacy_max: bool = False, incogn
             profile.set_preference("network.http.referer.spoofSource", True)
             profile.set_preference("network.http.referer.XOriginPolicy", 2)
             profile.set_preference("network.http.referer.XOriginTrimmingPolicy", 2)
-            # Additional privacy settings
             profile.set_preference("device.sensors.enabled", False)
             profile.set_preference("device.sensors.ambientLight.enabled", False)
             profile.set_preference("device.sensors.motion.enabled", False)
@@ -164,13 +167,9 @@ def build_driver(browser: str, headless: bool, privacy_max: bool = False, incogn
             profile.set_preference("dom.caches.enabled", False)
             profile.set_preference("browser.cache.disk.enable", False)
             profile.set_preference("browser.cache.memory.enable", False)
-        else:
-            # Minimal fingerprint protection
-            profile.set_preference("privacy.trackingprotection.enabled", True)
-            profile.set_preference("privacy.trackingprotection.fingerprinting.enabled", True)
-            profile.set_preference("privacy.trackingprotection.cryptomining.enabled", True)
         for ext in extensions:
             if ext.endswith(".xpi"):
+                # options.set_preference('xpinstall.signatures.required', False)
                 profile.add_extension(ext)
         profile.update_preferences()
         options.profile = profile
@@ -256,8 +255,7 @@ def main():
         )
         print(f"[info] Navigating to {url} ...")
         driver.get(url)
-
-        # snippet = dump_body(driver)
+        _time.sleep(10)
 
         # Wait for the feature list to be populated (up to 5 seconds)
         from selenium.webdriver.common.by import By
@@ -293,15 +291,46 @@ def main():
             if field not in features:
                 features[field] = ""
 
-        # Output structured JSON
+        # Output structured JSON for fingerprint features
         import datetime
+        timestamp = datetime.datetime.now().isoformat()
         output = {
-            "timestamp": datetime.datetime.now().isoformat(),
+            "timestamp": timestamp,
             "title": driver.title,
             "features": {k: features[k] for k in expected_fields}
         }
         with open("page_body.json", "w", encoding="utf-8") as f:
             json.dump(output, f, ensure_ascii=False, indent=2)
+
+        # Output structured JSON for call configuration
+        # Map extension file names to user-friendly names
+        ext_map = {
+            "ublock": "ublock origin (lite)",
+            "privacybadger": "privacy badger",
+            "noscript": "noscript",
+            "canvasblocker": "canvasblocker"
+        }
+        ext_choices = []
+        for ext in extensions:
+            ext_lc = ext.lower()
+            if "ublock" in ext_lc:
+                ext_choices.append("ublock origin (lite)")
+            elif "privacy-badger" in ext_lc or "privacy-badger" in ext_lc:
+                ext_choices.append("privacy badger")
+            elif "noscript" in ext_lc:
+                ext_choices.append("noscript")
+            elif "canvasblocker" in ext_lc:
+                ext_choices.append("canvasblocker")
+        config_output = {
+            "timestamp": timestamp,
+            "browser": browser,
+            "privacy_max": privacy_max,
+            "incognito": incognito,
+            "extensions": ext_choices
+        }
+        with open("call_config.json", "w", encoding="utf-8") as f:
+            json.dump(config_output, f, ensure_ascii=False, indent=2)
+
         sys.exit(3)
     except KeyboardInterrupt:
         print("[info] Interrupted by user.")
