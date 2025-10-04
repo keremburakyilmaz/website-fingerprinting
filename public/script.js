@@ -208,17 +208,58 @@ async function create_fingerprint() {
     // TLS / DNS / Cert info – only available to network observers
     addFeature("TLS / JA3", "Unavailable in browser JS");
     addFeature("SNI / DNS / Cert Info", "Unavailable in browser JS");
+
+    // ========= COMPREHENSIVE FINGERPRINT HASH =========
+    // Create a single hash from all collected fingerprint data
+    setTimeout(async () => {
+        try {
+            const allFeatures = {};
+            const featureList = document.getElementById('featureList');
+            const features = featureList.querySelectorAll('li');
+            
+            features.forEach(li => {
+                const title = li.querySelector('h3').textContent;
+                const value = li.querySelector('pre').textContent;
+                allFeatures[title] = value;
+            });
+            
+            // Create a comprehensive fingerprint string
+            const fingerprintString = JSON.stringify(allFeatures, Object.keys(allFeatures).sort());
+            const comprehensiveHash = await sha256Hex(fingerprintString);
+            addFeature("Comprehensive Fingerprint Hash", comprehensiveHash);
+            
+            // Update the hash display in the header
+            const hashValueElement = document.getElementById('hashValue');
+            if (hashValueElement) {
+                hashValueElement.textContent = comprehensiveHash;
+                hashValueElement.style.color = '#4CAF50'; // Green color to indicate success
+            }
+        } catch (error) {
+            addFeature("Comprehensive Fingerprint Hash", "Error generating hash");
+        }
+    }, 6000); // Wait for all other features to be collected
 }
 
 async function fingerprint() {
     await create_fingerprint();
     const btnBehaviour = document.getElementById('btnBehaviour');
     const btnSubmit = document.getElementById('btnSubmit');
-    const canvas_fingerprint = document.getElementById('CanvasFingerprint').getElementsByTagName('pre')[0].textContent;
+    
+    // Use comprehensive hash as primary identifier, fallback to canvas fingerprint
+    let primary_fingerprint = "";
+    try {
+        const comprehensiveElement = document.getElementById('ComprehensiveFingerprintHash');
+        if (comprehensiveElement) {
+            primary_fingerprint = comprehensiveElement.getElementsByTagName('pre')[0].textContent;
+        }
+    } catch (e) {
+        // Fallback to canvas fingerprint if comprehensive hash not available
+        primary_fingerprint = document.getElementById('CanvasFingerprint').getElementsByTagName('pre')[0].textContent;
+    }
 
     async function load_behaviour() {
         try {
-            const response = await fetch('/api/fingerprint?fingerprintId=' + canvas_fingerprint);
+            const response = await fetch('/api/fingerprint?fingerprintId=' + primary_fingerprint);
             if (!response.ok) {
                 throw new Error(`Response status: ${response.status}`);
             }
@@ -242,7 +283,7 @@ async function fingerprint() {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ fingerprintId: canvas_fingerprint, behaviour: behaviour })
+                body: JSON.stringify({ fingerprintId: primary_fingerprint, behaviour: behaviour })
             });
         } catch (error) {
             console.error("Error:", error);

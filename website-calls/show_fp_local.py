@@ -262,7 +262,7 @@ def main():
         )
         print(f"[info] Navigating to {url} ...")
         driver.get(url)
-        _time.sleep(10)
+        _time.sleep(12)  # Increased wait time to ensure comprehensive hash is generated
 
         # Wait for the feature list to be populated (up to 5 seconds)
         from selenium.webdriver.common.by import By
@@ -291,7 +291,7 @@ def main():
             "Screen Resolution", "Device Pixel Ratio", "Color Depth", "Time Zone", "Locale", "Platform", "CPU Cores", "Device Memory (GB)",
             "Multi-Monitor Position", "Media Devices", "WebRTC Candidate", "Cookies Enabled", "Accept-Language", "Do Not Track", "Plugins",
             "Audio Fingerprint", "WASM Compile Time (ms)", "TLS / JA3", "SNI / DNS / Cert Info", "Device Motion", "Device Orientation",
-            "Mouse Sample", "Key Press Sample", "Scroll Sample", "Touch Gestures Sample"
+            "Mouse Sample", "Key Press Sample", "Scroll Sample", "Touch Gestures Sample", "Comprehensive Fingerprint Hash"
         ]
         # Fill missing fields with empty string or default value
         for field in expected_fields:
