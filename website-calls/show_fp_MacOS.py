@@ -6,10 +6,10 @@ Features:
     - Output a second config JSON (call_config.json) with run settings
 
 Example usage:
-        python3 show_fp_local.py --browser chrome --url http://localhost:80
-        python3 show_fp_local.py --browser brave --url http://localhost:80 --incognito --privacy-max
-        python3 show_fp_local.py --browser firefox --url http://localhost:80 --extension ./extensions/firefox-xpi/ublock_origin-1.66.4.xpi --extension ./extensions/firefox-xpi/privacy-badger-latest.xpi --extension ./extensions/firefox-xpi/canvasblocker-1.11.xpi --extension ./extensions/firefox-xpi/noscript-13.0.9.xpi  --incognito
-        python3 show_fp_local.py --browser chrome --url http://localhost:80 --extension ./extensions/chromium-crx/ublock_origin_lite.crx --extension ./extensions/chromium-crx/privacy-badger-chrome.crx --extension ./extensions/chromium-crx/NoScript.crx  --incognito
+        python3 show_fp_MacOS.py --browser chrome --url http://localhost:80
+        python3 show_fp_MacOS.py --browser brave --url http://localhost:80 --incognito --privacy-max
+        python3 show_fp_MacOS.py --browser firefox --url http://localhost:80 --extension ./extensions/firefox-xpi/ublock_origin-1.66.4.xpi --extension ./extensions/firefox-xpi/privacy-badger-latest.xpi --extension ./extensions/firefox-xpi/canvasblocker-1.11.xpi --extension ./extensions/firefox-xpi/noscript-13.0.9.xpi  --incognito
+        python3 show_fp_MacOS.py --browser chrome --url http://localhost:80 --extension ./extensions/chromium-crx/ublock_origin_lite.crx --extension ./extensions/chromium-crx/privacy-badger-chrome.crx --extension ./extensions/chromium-crx/NoScript.crx  --incognito
 Dependencies:
         pip install -r requirements.txt
 """
@@ -298,45 +298,35 @@ def main():
             if field not in features:
                 features[field] = ""
 
-        # Output structured JSON for fingerprint features
-        import datetime
-        timestamp = datetime.datetime.now().isoformat()
-        output = {
-            "timestamp": timestamp,
-            "title": driver.title,
-            "features": {k: features[k] for k in expected_fields}
-        }
-        with open("page_body.json", "w", encoding="utf-8") as f:
-            json.dump(output, f, ensure_ascii=False, indent=2)
-
-        # Output structured JSON for call configuration
         # Map extension file names to user-friendly names
-        ext_map = {
-            "ublock": "ublock origin (lite)",
-            "privacybadger": "privacy badger",
-            "noscript": "noscript",
-            "canvasblocker": "canvasblocker"
-        }
         ext_choices = []
         for ext in extensions:
             ext_lc = ext.lower()
             if "ublock" in ext_lc:
                 ext_choices.append("ublock origin (lite)")
-            elif "privacy-badger" in ext_lc or "privacy-badger" in ext_lc:
+            elif "privacybadger" in ext_lc or "privacy-badger" in ext_lc or "privacy_badger" in ext_lc:
                 ext_choices.append("privacy badger")
             elif "noscript" in ext_lc:
                 ext_choices.append("noscript")
             elif "canvasblocker" in ext_lc:
                 ext_choices.append("canvasblocker")
-        config_output = {
+
+        # Output combined JSON
+        import datetime
+        timestamp = datetime.datetime.now().isoformat()
+        combined_output = {
             "timestamp": timestamp,
+            "config": {
             "browser": browser,
             "privacy_max": privacy_max,
             "incognito": incognito,
-            "extensions": ext_choices
+            "extensions": ext_choices,
+            },
+            "title": driver.title,
+            "features": {k: features[k] for k in expected_fields}
         }
-        with open("call_config.json", "w", encoding="utf-8") as f:
-            json.dump(config_output, f, ensure_ascii=False, indent=2)
+        with open("output.json", "w", encoding="utf-8") as f:
+            json.dump(combined_output, f, ensure_ascii=False, indent=2)
 
         sys.exit(3)
     except KeyboardInterrupt:
