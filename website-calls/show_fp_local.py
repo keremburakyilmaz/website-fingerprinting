@@ -4,7 +4,6 @@ Features:
     - Open a target URL in a chosen browser: chrome|brave|firefox
     - Collect fingerprinting features and output as JSON (page_body.json)
     - Output a second config JSON (call_config.json) with run settings
-    - Exit code 3 when fingerprint JSON not found, 1 on other errors.
 
 Example usage:
         python3 show_fp_local.py --browser chrome --url http://localhost:80
@@ -54,6 +53,8 @@ def build_driver(browser: str, headless: bool, privacy_max: bool = False, incogn
         # Chrome-specific privacy settings
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-features=DisableLoadExtensionCommandLineSwitch")
+
         if privacy_max:
             # Maximum privacy flags
             options.add_argument("--disable-plugins-discovery")
@@ -167,13 +168,19 @@ def build_driver(browser: str, headless: bool, privacy_max: bool = False, incogn
             profile.set_preference("dom.caches.enabled", False)
             profile.set_preference("browser.cache.disk.enable", False)
             profile.set_preference("browser.cache.memory.enable", False)
-        for ext in extensions:
-            if ext.endswith(".xpi"):
-                # options.set_preference('xpinstall.signatures.required', False)
-                profile.add_extension(ext)
-        profile.update_preferences()
         options.profile = profile
-        return webdriver.Firefox(options=options)
+        profile.update_preferences()
+        
+        driver =  webdriver.Firefox(options=options)
+
+        for ext in extensions:
+
+            if ext.endswith(".xpi"):
+
+                driver.install_addon(ext)
+
+        return driver
+    
 
     # Tor support removed
     raise ValueError(f"Unsupported browser: {browser}")
