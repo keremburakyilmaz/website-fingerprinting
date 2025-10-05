@@ -1,0 +1,179 @@
+{
+  "type": "object",
+  "properties": {
+    "timestamp": {
+      "type": "string"
+    },
+    "config": {
+      "type": "object",
+      "properties": {
+        "browser": {
+          "type": "string"
+        },
+        "privacy_max": {
+          "type": "boolean"
+        },
+        "incognito": {
+          "type": "boolean"
+        },
+        "extensions": {
+          "type": "array",
+          "items":
+            {
+              "type": "string"
+            }
+        }
+      },
+      "required": [
+        "browser",
+        "privacy_max",
+        "incognito",
+        "extensions"
+      ]
+    },
+    "title": {
+      "type": "string"
+    },
+    "features": {
+      "type": "object",
+      "properties": {
+        "Canvas Fingerprint": {
+          "type": "string"
+        },
+        "WebGL Vendor": {
+          "type": "string"
+        },
+        "WebGL Renderer": {
+          "type": "string"
+        },
+        "WebGL Shader Precision": {
+          "type": "string"
+        },
+        "Detected Fonts": {
+          "type": "string"
+        },
+        "User-Agent": {
+          "type": "string"
+        },
+        "Screen Resolution": {
+          "type": "string"
+        },
+        "Device Pixel Ratio": {
+          "type": "string"
+        },
+        "Color Depth": {
+          "type": "string"
+        },
+        "Time Zone": {
+          "type": "string"
+        },
+        "Locale": {
+          "type": "string"
+        },
+        "Platform": {
+          "type": "string"
+        },
+        "CPU Cores": {
+          "type": "string"
+        },
+        "Device Memory (GB)": {
+          "type": "string"
+        },
+        "Multi-Monitor Position": {
+          "type": "string"
+        },
+        "Media Devices": {
+          "type": "string"
+        },
+        "WebRTC Candidate": {
+          "type": "string"
+        },
+        "Cookies Enabled": {
+          "type": "string"
+        },
+        "Accept-Language": {
+          "type": "string"
+        },
+        "Do Not Track": {
+          "type": "string"
+        },
+        "Plugins": {
+          "type": "string"
+        },
+        "Audio Fingerprint": {
+          "type": "string"
+        },
+        "WASM Compile Time (ms)": {
+          "type": "string"
+        },
+        "TLS / JA3": {
+          "type": "string"
+        },
+        "SNI / DNS / Cert Info": {
+          "type": "string"
+        },
+        "Device Motion": {
+          "type": "string"
+        },
+        "Device Orientation": {
+          "type": "string"
+        },
+        "Mouse Sample": {
+          "type": "string"
+        },
+        "Key Press Sample": {
+          "type": "string"
+        },
+        "Scroll Sample": {
+          "type": "string"
+        },
+        "Touch Gestures Sample": {
+          "type": "string"
+        },
+        "Comprehensive Fingerprint Hash": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "Canvas Fingerprint",
+        "WebGL Vendor",
+        "WebGL Renderer",
+        "WebGL Shader Precision",
+        "Detected Fonts",
+        "User-Agent",
+        "Screen Resolution",
+        "Device Pixel Ratio",
+        "Color Depth",
+        "Time Zone",
+        "Locale",
+        "Platform",
+        "CPU Cores",
+        "Device Memory (GB)",
+        "Multi-Monitor Position",
+        "Media Devices",
+        "WebRTC Candidate",
+        "Cookies Enabled",
+        "Accept-Language",
+        "Do Not Track",
+        "Plugins",
+        "Audio Fingerprint",
+        "WASM Compile Time (ms)",
+        "TLS / JA3",
+        "SNI / DNS / Cert Info",
+        "Device Motion",
+        "Device Orientation",
+        "Mouse Sample",
+        "Key Press Sample",
+        "Scroll Sample",
+        "Touch Gestures Sample",
+        "Comprehensive Fingerprint Hash"
+      ]
+    }
+  },
+  "required": [
+    "timestamp",
+    "config",
+    "title",
+    "features"
+  ]
+}
