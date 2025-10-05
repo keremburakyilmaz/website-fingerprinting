@@ -21,6 +21,7 @@ from bs4 import BeautifulSoup
 import sys
 from pathlib import Path
 from typing import Optional
+import requests
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -441,6 +442,16 @@ def main():
         }
         with open("output.json", "w", encoding="utf-8") as f:
             json.dump(combined_output, f, ensure_ascii=False, indent=2)
+
+        # POST output.json to /api/testing
+        try:
+            with open("output.json", "r", encoding="utf-8") as f:
+                data = json.load(f)
+            resp = requests.post("http://localhost:80/api/testing", json=data)
+            print("POST /api/testing status:", resp.status_code)
+            print("Response:", resp.text)
+        except Exception as e:
+            print("[error] Failed to POST to /api/testing:", e)
 
         sys.exit(3)
     except KeyboardInterrupt:

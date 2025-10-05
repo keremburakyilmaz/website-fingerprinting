@@ -1,10 +1,14 @@
 {
-  "timestamp": "2025-10-05T14:21:20.720653",
+  "timestamp": "2025-10-05T19:30:43.677502",
   "config": {
     "browser": "chrome",
     "privacy_max": true,
-    "incognito": false,
-    "extensions": []
+    "incognito": true,
+    "extensions": [
+      "ublock origin (lite)",
+      "privacy badger",
+      "noscript"
+    ]
   },
   "title": "Fingerprint Features",
   "features": {
@@ -24,21 +28,21 @@
     "Device Memory (GB)": "8",
     "Multi-Monitor Position": "availLeft=-2486, availTop=-308",
     "Media Devices": "[\n  \"audioinput: hidden\",\n  \"videoinput: hidden\",\n  \"audiooutput: hidden\"\n]",
-    "WebRTC Candidate": "candidate:3662341379 1 udp 2113937151 0ba4538a-3d78-4a62-8f52-46653b55b038.local 59195 typ host generation 0 ufrag Omfn network-cost 999",
+    "WebRTC Candidate": "candidate:1091588611 1 udp 2113937151 b0ed2367-d7b6-4114-9ba4-42b11b940a98.local 55291 typ host generation 0 ufrag DEUL network-cost 999",
     "Cookies Enabled": "true",
     "Accept-Language": "en-US",
     "Do Not Track": "N/A",
     "Plugins": "[\n  \"PDF Viewer\",\n  \"Chrome PDF Viewer\",\n  \"Chromium PDF Viewer\",\n  \"Microsoft Edge PDF Viewer\",\n  \"WebKit built-in PDF\"\n]",
     "Audio Fingerprint": "7da36d6728cd4cac957b611bd6bde1c36ea9909a590e7ac6b0b0593f2e097e7d",
-    "WASM Compile Time (ms)": "4.20",
+    "WASM Compile Time (ms)": "8.60",
     "TLS / JA3": "Unavailable in browser JS",
     "SNI / DNS / Cert Info": "Unavailable in browser JS",
     "Device Motion": "{\n  \"acc\": {},\n  \"accG\": {},\n  \"rot\": {}\n}",
     "Device Orientation": "{\n  \"alpha\": null,\n  \"beta\": null,\n  \"gamma\": null\n}",
-    "Mouse Sample": "[\n  [\n    794,\n    1254\n  ],\n  [\n    794,\n    1252\n  ],\n  [\n    794,\n    1250\n  ]\n]",
+    "Mouse Sample": "[\n  [\n    885,\n    1191\n  ],\n  [\n    884,\n    1191\n  ],\n  [\n    884,\n    1191\n  ]\n]",
     "Key Press Sample": "[]",
-    "Scroll Sample": "[\n  [\n    0,\n    120\n  ],\n  [\n    0,\n    240\n  ],\n  [\n    0,\n    369\n  ]\n]",
+    "Scroll Sample": "[]",
     "Touch Gestures Sample": "[]",
-    "Comprehensive Fingerprint Hash": "f5aa5ffb85e7a554f280552c38f2738d25756de33d580fba31a524abc31de25f"
+    "Comprehensive Fingerprint Hash": "a287585c4793e68805b254370d31bca151401a111722034f764c8d2f7c9f2ba7"
   }
 }
