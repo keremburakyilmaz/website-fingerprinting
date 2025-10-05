@@ -210,17 +210,29 @@ async function create_fingerprint() {
     addFeature("SNI / DNS / Cert Info", "Unavailable in browser JS");
 
     // ========= COMPREHENSIVE FINGERPRINT HASH =========
-    // Create a single hash from all collected fingerprint data
+    // Create a single hash from all collected fingerprint data (excluding certain parameters)
     setTimeout(async () => {
         try {
             const allFeatures = {};
             const featureList = document.getElementById('featureList');
             const features = featureList.querySelectorAll('li');
             
+            // Parameters to exclude from comprehensive hash
+            const excludedParams = [
+                'WebRTC Candidate',
+                'WASM Compile Time (ms)',
+                'Mouse Sample',
+                'Scroll Sample'
+            ];
+            
             features.forEach(li => {
                 const title = li.querySelector('h3').textContent;
                 const value = li.querySelector('pre').textContent;
-                allFeatures[title] = value;
+                
+                // Only include features that are not in the excluded list
+                if (!excludedParams.includes(title)) {
+                    allFeatures[title] = value;
+                }
             });
             
             // Create a comprehensive fingerprint string
