@@ -1,0 +1,3 @@
+# tor-browser-selenium for Windows
+
+The code in this folder originates from the [tor-browser-selenium-windows](https://github.com/Mohamed-Emad126/tor-browser-selenium-windows) GitHub repository and is subject to the included LICENSE. It was installed as specified in their [installation instructions](https://github.com/Mohamed-Emad126/tor-browser-selenium-windows/blob/main/README.md#-installation-for-windows-users) and is therefore directly included in our project. The [tor-browser-selenium-windows](https://github.com/Mohamed-Emad126/tor-browser-selenium-windows) repository is a fork of the [tor-browser-selenium](https://github.com/webfp/tor-browser-selenium) repository. This code allows us to automate the Tor Browser with Selenium WebDriver on Windows.
