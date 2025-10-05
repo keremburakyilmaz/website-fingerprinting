@@ -1,19 +1,19 @@
 {
-  "timestamp": "2025-10-04T23:51:47.672709",
+  "timestamp": "2025-10-05T14:21:20.720653",
   "config": {
     "browser": "chrome",
-    "privacy_max": false,
+    "privacy_max": true,
     "incognito": false,
     "extensions": []
   },
   "title": "Fingerprint Features",
   "features": {
     "Canvas Fingerprint": "669f598c8c8a457837e2c6f2b54caa340cd4ff2d2045bd965ed53d2f4724c1ef",
-    "WebGL Vendor": "Google Inc. (Apple)",
-    "WebGL Renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
-    "WebGL Shader Precision": "{}",
+    "WebGL Vendor": "",
+    "WebGL Renderer": "",
+    "WebGL Shader Precision": "",
     "Detected Fonts": "[\n  \"Courier New\",\n  \"Comic Sans MS\"\n]",
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0",
     "Screen Resolution": "2560 x 1440",
     "Device Pixel Ratio": "1",
     "Color Depth": "24",
@@ -24,21 +24,21 @@
     "Device Memory (GB)": "8",
     "Multi-Monitor Position": "availLeft=-2486, availTop=-308",
     "Media Devices": "[\n  \"audioinput: hidden\",\n  \"videoinput: hidden\",\n  \"audiooutput: hidden\"\n]",
-    "WebRTC Candidate": "candidate:1014431994 1 udp 2113937151 76b7af58-497a-4daf-890c-ed1fcee4f589.local 59335 typ host generation 0 ufrag z4KS network-cost 999",
+    "WebRTC Candidate": "candidate:3662341379 1 udp 2113937151 0ba4538a-3d78-4a62-8f52-46653b55b038.local 59195 typ host generation 0 ufrag Omfn network-cost 999",
     "Cookies Enabled": "true",
     "Accept-Language": "en-US",
     "Do Not Track": "N/A",
     "Plugins": "[\n  \"PDF Viewer\",\n  \"Chrome PDF Viewer\",\n  \"Chromium PDF Viewer\",\n  \"Microsoft Edge PDF Viewer\",\n  \"WebKit built-in PDF\"\n]",
     "Audio Fingerprint": "7da36d6728cd4cac957b611bd6bde1c36ea9909a590e7ac6b0b0593f2e097e7d",
-    "WASM Compile Time (ms)": "4.30",
+    "WASM Compile Time (ms)": "4.20",
     "TLS / JA3": "Unavailable in browser JS",
     "SNI / DNS / Cert Info": "Unavailable in browser JS",
     "Device Motion": "{\n  \"acc\": {},\n  \"accG\": {},\n  \"rot\": {}\n}",
     "Device Orientation": "{\n  \"alpha\": null,\n  \"beta\": null,\n  \"gamma\": null\n}",
-    "Mouse Sample": "[]",
+    "Mouse Sample": "[\n  [\n    794,\n    1254\n  ],\n  [\n    794,\n    1252\n  ],\n  [\n    794,\n    1250\n  ]\n]",
     "Key Press Sample": "[]",
-    "Scroll Sample": "[]",
+    "Scroll Sample": "[\n  [\n    0,\n    120\n  ],\n  [\n    0,\n    240\n  ],\n  [\n    0,\n    369\n  ]\n]",
     "Touch Gestures Sample": "[]",
-    "Comprehensive Fingerprint Hash": ""
+    "Comprehensive Fingerprint Hash": "f5aa5ffb85e7a554f280552c38f2738d25756de33d580fba31a524abc31de25f"
   }
 }
