@@ -176,10 +176,10 @@ app.post('/api/testing', async (req, res) => {
         } 
     } = req.body;
     
-    ublock_origin = extensions.findIndex(elm => elm.includes("ublock origin (lite)")) === -1 ? 0 : 1;
-    privacy_badger = extensions.findIndex(elm => elm.includes("privacy badger")) === -1 ? 0 : 1;
-    noscript = extensions.findIndex(elm => elm.includes("noscript")) === -1 ? 0 : 1;
-    canvasblocker = extensions.findIndex(elm => elm.includes("canvasblocker")) === -1 ? 0 : 1;
+    const ublock_origin = extensions.findIndex(elm => elm.includes("ublock origin (lite)")) === -1 ? 0 : 1;
+    const privacy_badger = extensions.findIndex(elm => elm.includes("privacy badger")) === -1 ? 0 : 1;
+    const noscript = extensions.findIndex(elm => elm.includes("noscript")) === -1 ? 0 : 1;
+    const canvasblocker = extensions.findIndex(elm => elm.includes("canvasblocker")) === -1 ? 0 : 1;
 
     try {
         await new Promise((resolve, reject) => {
@@ -275,7 +275,7 @@ app.post('/api/testing', async (req, res) => {
         res.json({ success: true, message: 'Test results saved correctly!' });
     } catch (error) {
         console.error('Error adding test results: ', error);
-        res.status(500).json({ error: 'Failed to add fingerprint and config' });
+        res.status(500).json({ error: 'Failed to save test results correctly!' });
     }
 });
 

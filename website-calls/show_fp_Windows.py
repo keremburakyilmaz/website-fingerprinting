@@ -17,7 +17,6 @@ Dependencies:
 from __future__ import annotations
 import argparse
 import json
-from bs4 import BeautifulSoup
 import sys
 import subprocess
 from pathlib import Path
@@ -292,9 +291,7 @@ def build_driver(browser: str, headless: bool, privacy_max: bool = False, incogn
         driver =  webdriver.Firefox(options=options)
 
         for ext in extensions:
-
             if ext.endswith(".xpi"):
-
                 driver.install_addon(ext)
 
         return driver
