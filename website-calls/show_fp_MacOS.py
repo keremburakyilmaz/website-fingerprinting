@@ -447,7 +447,7 @@ def main():
         try:
             with open("output.json", "r", encoding="utf-8") as f:
                 data = json.load(f)
-            resp = requests.post("http://localhost:80/api/testing", json=data)
+            resp = requests.post(args.url + "/api/testing", json=data)
             print("POST /api/testing status:", resp.status_code)
             print("Response:", resp.text)
         except Exception as e:

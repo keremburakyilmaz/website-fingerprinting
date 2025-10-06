@@ -37,7 +37,7 @@ for REPEAT in 1 2; do
           fi
           echo "Running (repeat $REPEAT): $CMD"
           eval $CMD
-          echo "Sleeping 10 seconds..."
+          echo "Sleeping 5 seconds..."
           sleep 10
         done
       done
