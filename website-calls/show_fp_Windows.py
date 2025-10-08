@@ -535,6 +535,10 @@ def main():
                 ext_choices.append("noscript")
             elif "canvasblocker" in ext_lc:
                 ext_choices.append("canvasblocker")
+        
+        # Tor uses noscript by default
+        if browser == "tor":
+            ext_choices.append("noscript")
 
         # Output combined JSON
         import datetime
