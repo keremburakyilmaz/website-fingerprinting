@@ -1,5 +1,8 @@
-# Browser fingerprinting demonstration
-This is the final repository for the project in 'DD2391 - Cybersecurity Overview' at KTH in P1 2025 of group members Kerem Burak Yilmaz, Manuel Michael Voit and Frederic Jonathan Lorenz (Group 12). This project implements a browser fingerprinting demonstrator (webserver), which collects fingerprinting features, calculates a final fingerprint ID and can store this information + user behaviour in a DB. Furthermore, an automated way to test anti-fingerprinting techniques (client-side) has been implemented using Selenium, in order to be able to make a statement about their effectiveness.
+# Problem Statement - Browser fingerprinting demonstration
+
+This is the final repository for the project in 'DD2391 - Cybersecurity Overview' at KTH in P1 2025 of group members Kerem Burak Yilmaz, Manuel Michael Voit and Frederic Jonathan Lorenz (Group 12).
+
+Browser fingerprinting poses a significant privacy risk on the modern web by enabling websites to uniquely identify and track users based on subtle differences in their browser/system settings or hardware devices, even in the absence of cookies or other traditional tracking mechanisms. This project addresses the challenge of understanding, demonstrating, and evaluating the effectiveness of fingerprinting techniques and anti-fingerprinting measures. This is achieved by implementing a browser fingerprinting demonstrator (webserver), which collects fingerprinting features, calculates a final fingerprint ID (hash) and can store this information + user data in a DB. Furthermore, an automated way to test anti-fingerprinting techniques (client-side) has been implemented using Selenium, in order to be able to make a statement about their effectiveness. Our goal is to systematically analyze how different browsers, privacy settings, and extensions impact the uniqueness and persistence of browser fingerprints, thereby informing users and developers about the strengths and limitations of current privacy-enhancing technologies.
 
 
 ## 1 Installation / Use
@@ -135,11 +138,71 @@ By systematically varying browser, privacy settings, extension state, and incogn
 
 #### 3.3.4 Browser-automation using Selenium (Testing fingerprinting website)
 
-##### 3.3.4.1 Failed attempts
+##### 3.3.4.1 Failed attempts and hurdles
 
-##### 3.3.4.2 General functionality of script
+In order to create a comparable testing environment, the original idea was to user a docker virtualized environment, for the purpose of hosting the client that we'd use to perform the website calls, in order to test our fingerprinting abilities and mitigations. This would come with the advantage, that we could easily adapt and rebuild the container to perform tests on different OS'es and their effect on the fingerprinting findings. However, after several failed attempts, this topic was discussed again and we discussed that it might be unclear how using a docker-container to perform the website calls might affect the browser-fingerprint. Concretely, we were worried about the examples being too unrealistic, since being in a docker-container would provide 'lab-environments', which is great for repeatibility, but poor for realism. For instance, it was unclear what the abstraction of hardware did to the fingerprint, since the browser cannot see a 'real' hardware stack, so fingerprinting features depending on those (WebGL, Canvas or Audio-FP) could not be represented realistically. These and further factors lead to us abandoning the idea of testing inside a docker-container. The failed attempts can be seen in `./website-calls/obsolete/`.
+
+The following approach was to utilize a very standardized virtual machine. This would come with the benefit of having a virtualized but more realistic hardware stack, while at the same time still being somewhat repeatable for testing (standard blanc ubuntu image with standard installs of browsers, drivers, libraries → very lightweight). However, when testing this it became clear that there is a handful of bugs of the automation platform (Selenium) in combination with the respective drivers (chromedriver & geckodriver). Since we were not able to resolve these, it was ultimately decided that we'd conduct our website calls from our host OS'es directly.
+
+Therefore our python script to automate browser testing was adapted for both MacOs `./website-calls/show_fp_MacOS.py` as well as Windows `./website-calls/show_fp_Windows.py`. Please follow the installation instructions mentioned up top to get these running. One Caveat is that the TOR Browser is designed in order to resist browser automation and scripted control. This was done, since enabling automation requires to expose an inter-process communication API, which itself can be used to break anonymity. As the browsers philosophy is based on preventing this from happening, remote-control protocols like Marionette (used by Selenium) are disabled by default. There are certain projects like 'tbselenium' which break these intentional automation-blockers by TOR browser. However, since this is only available for Linux and Windwos (not MacOS), we ultimately decided to only test Chrome, Brave and Firefox on MacOS and include TOR-browser only on our tests in the Windows environment. 
+
+##### 3.3.4.2 General functionality of Selenium browser-automation script 
+
+The first step when running the Selenium browser-automation script is to pass arguments, which are then parsed and affect the rest of the execution: 
+
+```
+--browser (required): Specifies which browser to use (chrome, brave, firefox, or tor (On Windows Script)).
+Example: --browser chrome
+
+--url (required): The target URL to visit, which fingerprints us.
+Example: --url http://localhost:80
+
+--headless: Runs the browser in headless mode (no visible window), which may affect the fingerprint. (experimental only, no final use)
+Example: --headless
+
+--privacy-max: Enables all available privacy and anti-fingerprinting settings for the chosen browser, settings vary from browser to browser, more on that later
+Example: --privacy-max
+
+--incognito: Launches the browser in incognito/private mode.
+Example: --incognito
+
+--extension: Path to a browser extension file (.crx or .xpi) to load; can be used multiple times for multiple extensions.
+Example: --extension ./extensions/chromium-crx/ublock_origin_lite.crx --extension ./extensions/chromium-crx/privacy-badger-chrome.crx
+```
+
+After the arguments have been parsed, they are used to build a functioning driver of the respective browser. This is the point where the Selenium API is used to manipulate browser options/preferences/settings. This process varies slightly depending on the browser type used.
+
+The browser's privacy settings that could be either left at base settings (no argument) or set to a very restrictive set of settings (--privacy-max) deserves more extensive explanation. In those cases, we conducted research [4][5] in order to find a large number of settings that could help reduce fingerprintability (Though the list used does not claim to be exhaustive). Generally it can be noted, that browsers based on the same driver (Chrome &  Brave ↔ Firefox & TOR) generally have the same/very similar settings that can be tweaked. However, privacy-based browser like Brave and TOR in many cases have secure settings preconfigured, making it redundant to set those again manually. For more in-detail explanation of the individual settings, please refer to the inline-comments made in the respective scripts.
+
+To enable automated testing with privacy extensions, we downloaded the relevant extension files (.crx for Chromium-based browsers and .xpi for Firefox-based browsers) from official sources and manually loaded them into the browsers via Selenium’s extension loading functionality. While it is important to note that the presence of certain extensions can itself serve as a fingerprinting vector, potentially reducing privacy, especially in browsers like Tor where NoScript is already built-in, we chose to include them in our tests to systematically evaluate their impact on fingerprinting surfaces. This allows us to compare both extension-free and extension-enabled scenarios across all browsers, even if using extensions is not always recommended for maximum anonymity.
+
+Once the driver for making the website-call has been successfully created, our fingerprinting website is being called on localhost. We include a unique cache-busting query parameter in the request in order to avoid any browser to load a cached version of the website. This ensures we always get a fresh copy of the data from the server.
+
+The fingerprinting data is displayed on the website. In order to fetch and parse this data, the HTML is searched and stripped of whitespaces. Afterwards, the found values are fed into a python dictionary, where the name of the fingerprinting value represents the key, and its content is stored as the value. Next, this dictionary containing the fingerprinting data of the respective browser configuration is used to create a JSON of the following structure:
+
+```
+combined_output = {
+    "timestamp": timestamp,
+    "config": {
+    "browser": browser choice,
+    "privacy_max": privacy_max (yes/no),
+    "incognito": incognito (yes/no),
+    "extensions": extensions selected (array),
+    },
+    "title": Title of webpage,
+    "features": {lists all key/value pairs of dictionary, even if value is emppty}
+}
+```
+
+As can be seen above, the JSON includes all data that is relevant to the individual request made - including the used configuration as well as the output of the webserver. This is necessary so that for later analysis, all setting-output combinations are traceable and stored uniformly.
+
+In the next and final step, this uniform JSON file is passed to the `/api/testing` endpoint of our fingerprinting server using a POST request. This triggers the server to store the passed data in its databse. From this aggregated dataset, a comprehensive analysis of all different browsers (+ settings, extensions, incognito modes) and their respective fingerprinting surface can be conducted.
 
 ##### 3.3.4.3 Automated testing procedure using bash script
+
+The general idea is to make calls to the webserver using different combinations of browsers, browser-privacy-settings, privacy modes (incognito) and extensions. Since this creates a big amount of different possible combinations, it is necessary to automate this task. Using a bash script on MacOS (`./website-calls/run_all_combinations.sh`) and a batch script on Windows (`./website-calls/run_all_combinations.bat`), this was accomplished.
+
+Despite this accomplished automation, it was decided to restrict the amount of different combinations, in order to work with/analyze a more manageable dataset size. Concretely, we ended up using four browsers (three on MacOS): Chrome, Brave, Firefox and TOR. For each browser, the incognito mode was toggled on/off, a maximum of browser privacy settings (or none) were applied (on/off) and either all exensions (4 on geckodriver browsers, 3 on chromium browsers) (or none) were applied (on/off). This leaves 2^3=8 combinations per browser. Furthermore, every combination was used to make two calls to the webserver, in order to verify whether there were any changes to the detectable fingerprint. In total 3x8x2=48 website calls were made on MacOS and 4x8x2=64 calls were made on Windows.
 
 ### 3.4 Data analysis
 
@@ -160,4 +223,10 @@ By systematically varying browser, privacy settings, extension state, and incogn
 [2] https://jscholarship.library.jhu.edu/server/api/core/bitstreams/22de9dbc-ebe5-4a45-ae00-25833b6ad227/content
 
 [3] https://tb-manual.torproject.org/anti-fingerprinting/?utm_source=chatgpt.com
+
+[4] https://peter.sh/experiments/chromium-command-line-switches/
+
+[5] https://github.com/arkenfox/user.js
+
+
 
