@@ -95,6 +95,17 @@ Feel free to add more sections
 
 ### 3.1 Fingerprint collection
 
+We used multiple methods to collect the fingerprints of the user. We tried to both include high entropy features (more unique and stable) and low entropy features (less unique and unstable) in order to make our analysis fair. 
+
+| Layer              | Feature                                                                       | Main signal type                         | Typical entropy / stability         | Privacy implication                          |
+| ------------------ | ------------------------------------------------------------------------------------ | ---------------------------------------- | ----------------------------------- | -------------------------------------------- |
+| **High entropy**   | Canvas, WebGL, Audio, Fonts                                                          | Hardware- and driver-dependent rendering | Very unique; stable across sessions | Great for re-identification, bad for privacy |
+| **Medium entropy** | Screen, DPR, color depth, timezone, locale, CPU, RAM, platform, mediaDevices, WebRTC | System configuration and network hints   | Moderately unique, semi-stable      | Adds small differentiating bits              |
+| **Low entropy**    | Cookies, language, DNT, plugins, behaviour samples, orientation, motion, WASM        | Environment + user behaviour             | Low uniqueness, high volatility     | Mostly contextual noise                      |
+
+
+We also created a feature we called __"comprehensive fingerprint hash" (CFH)__, which was basically all the features concatenated together and hashed, in order to distinguish between configurations easier. However, the features WebRTC Candidate, WASM Compile Time (ms), Mouse Sample and Scroll Sample were removed from this since they were extremely unstable and caused our comprehensive hash to be different in each configuration.
+
 ### 3.2 Webserver and database
 
 ### 3.3 Anti-Fingerprinting measures and client-automation
@@ -114,7 +125,7 @@ In order to determine what AFPETs to analyze and use in the scope of this projec
 These parameters help understand against what kind of fingerprinting features users should try to protect themselves the most, therefore this insight will be incorporated into the following research of ours. 
 
 #### 3.3.2 High and Low Level mitigation techniques
-On a high-level, AFPETs focus on reducing the effectiveness of browser fingerprinting by addressing the root causes of uniqueness and trackability. A very important concept to note here is that in many cases, there is a trade-off between an increased fingerprinting and user-experience, since many mitigations techniques break the way websites were designed to work originally. Generally it can be stated that stopping browser fingerprinting is an effort that both web developers as well as end-users can contribute to. A website operator reconsider if introducing a new feature of the webpage adds a lot of entropy/uniqueness to the fingerprint and if that justifies the user benefit. Also 'Do Not Track' (DNT/GPC) headers sent by the user can be complied with by the server, however this is not enforced. The issue is that server-side compliance with privacy signals like DNT or GPC is entirely voluntary — malicious or profit-driven websites can simply ignore these requests, and users often have no way of knowing whether their preferences are being respected. As a result, relying solely on server-side cooperation is insufficient for robust privacy protection. Therefore, in this project, we focus on AFPETs that operate from the user side, empowering individuals to take direct control over their own fingerprinting exposure regardless of server behavior.
+On a high-level, AFPETs focus on reducing the effectiveness of browser fingerprinting by addressing the root causes of uniqueness and trackability. A very important concept to note here is that in many cases, there is a trade-off between an increased fingerprinting and user-experience, since many mitigations techniques break the way websites were designed to work originally. Generally it can be stated that stopping browser fingerprinting is an effort that both web developers as well as end-users can contribute to. A website operator reconsider if introducing a new feature of the webpage adds a lot of entropy/uniqueness to the fingerprint and if that justifies the user benefit. Also 'Do Not Track' (DNT/GPC) headers sent by the user can be complied with by the server, however this is not enforced. The issue is that server-side compliance with privacy signals like DNT or GPC is entirely voluntary - malicious or profit-driven websites can simply ignore these requests, and users often have no way of knowing whether their preferences are being respected. As a result, relying solely on server-side cooperation is insufficient for robust privacy protection. Therefore, in this project, we focus on AFPETs that operate from the user side, empowering individuals to take direct control over their own fingerprinting exposure regardless of server behavior.
 
 Hands-On mitigation techniques that can be used by clients can, in general, be classified into the following categories:
 
@@ -205,6 +216,151 @@ The general idea is to make calls to the webserver using different combinations 
 Despite this accomplished automation, it was decided to restrict the amount of different combinations, in order to work with/analyze a more manageable dataset size. Concretely, we ended up using four browsers (three on MacOS): Chrome, Brave, Firefox and TOR. For each browser, the incognito mode was toggled on/off, a maximum of browser privacy settings (or none) were applied (on/off) and either all exensions (4 on geckodriver browsers, 3 on chromium browsers) (or none) were applied (on/off). This leaves 2^3=8 combinations per browser. Furthermore, every combination was used to make two calls to the webserver, in order to verify whether there were any changes to the detectable fingerprint. In total 3x8x2=48 website calls were made on MacOS and 4x8x2=64 calls were made on Windows.
 
 ### 3.4 Data analysis
+
+We created a metric called privacy score, which showcases the amount of settings and extension enabled to increase privacy:
+
+Privacy Score = (Incognito + DoNotTrack + uBlock + Badger + NoScript + CanvasBlocker) + (1 − CookiesEnabled)
+
+We used a binary system to show if the setting is open or not. 
+
+An example would be:
+
+| Feature                    | Chrome                                                                             | Tor                                                                                          |
+| -------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Incognito                  | 0                                                                                  | 1                                                                                            |
+| Do Not Track               | 0                                                                                  | 1                                                                                            |
+| uBlock Origin              | 0                                                                                  | 1                                                                                            |
+| Privacy Badger             | 0                                                                                  | 1                                                                                            |
+| NoScript                   | 0                                                                                  | 1                                                                                            |
+| CanvasBlocker              | 0                                                                                  | 1                                                                                            |
+| Cookies Enabled (inverted) | 0 (true = 0)                                                                       | 1 (false = 1)                                                                                |
+
+
+__Interpretation:__
+- Higher privacy score = higher protection but also more “drift” (different hash each session).
+- Lower privacy score = stable but trackable.
+- We found a correlation of −0.74 between privacy score and fingerprint uniqueness.
+- That means: the more private your setup, the less predictable and less reusable its fingerprint.
+- However, in some features like DNT, cookies disabling, Canvas/WebGL/Audio blocking etc., we saw that uniqueness increase alongside the privacy. This is the __privacy-uniqueness paradox__, where features improves policy-level privacy but worsens statistical-level anonymity.
+
+![alt text](uniqueness-privacy-tradeoff.png)
+
+#### 3.4.1 Cross Browser Comparison
+
+| Browser     | Unique CFH rate | Avg. Privacy Score | Uniqueness vs Chrome | Privacy vs Chrome | Interpretation                                                                                                                                                  |
+| ----------- | --------------- | ------------------ | ---------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Chrome**  | 0.00            | 2.25               | -                      | -                   | Fully deterministic: every run identical.                                                                                                                       |
+| **Brave**   | 0.75            | 2.25               | +0.75           | 0.00                | 75 % higher uniqueness due to randomized Canvas/Audio. Privacy score same, meaning Brave’s *built-in* defenses don’t all register in your simple Boolean score. |
+| **Firefox** | 0.38            | 2.75               | +0.38              | +0.50          | Partial blocking adds moderate entropy and small privacy gain.                                                                                                  |
+| **Tor**     | 1.00            | 3.00               | +1.00              | +0.75           | Every fingerprint hash unique = perfect session isolation, highest privacy.                                                                                     |
+
+
+Tor > Brave > Firefox > Chrome in both uniqueness and privacy.
+The magnitude of difference is large: Tor’s CFH variability is 2.6× higher than Brave’s (1.00 / 0.38) and infinite relative to Chrome’s 0.00 baseline.
+
+#### 3.4.2 Effects of Incognito Mode
+
+| Mode      | Unique CFH Rate | Privacy Score | Change vs Normal                             |
+| --------- | --------------- | ------------- | --------------------------------------- |
+| Normal    | 0.44            | 2.25          | -                                       |
+| Incognito | 0.63            | 2.88          | **+0.19 uniqueness**, **+0.63 privacy** |
+
+__Interpretation:__
+- Incognito isolates cookies, localStorage, and session identifiers, altering navigator.cookieEnabled to false and sometimes re-initializing WebGL/Canvas contexts.
+- That explains the ~43 % = 63 % uniqueness rise.
+- The privacy score gain (+0.63 ~ +28 %) confirms more “blocked/off” flags (cookies off, DNT = true).
+
+#### 3.4.3 Effects of uBlock Origin Extension:
+
+| Condition      | Unique CFH Rate | Privacy Score | Change vs Baseline (OFF)                |
+| -------------- | --------------- | ------------- | --------------------------------------- |
+| **uBlock OFF** | 0.63            | 0.75          | -                                       |
+| **uBlock ON**  | 0.44            | 4.38          | **−0.19 uniqueness**, **+3.63 privacy** |
+
+__Interpretation:__
+- Enabling uBlock Origin disables or spoofs numerous tracking APIs (e.g., navigator.plugins, media enumeration lists).
+- Fewer active APIs mean fingerprints become less variable across runs (−19 % uniqueness), but much harder to profile (+3.63 points ~ +484 % privacy gain).
+- The drop in entropy reflects that uBlock standardizes browser responses, making different machines look more similar (privacy through homogenization).
+
+#### 3.4.4 Combined Extension Stack (Privacy Badger / NoScript / CanvasBlocker)
+
+| Extension Configuration                      | Unique CFH Rate | Privacy Score | Change vs No Extensions     |
+| -------------------------------------------- | --------------- | ------------- | --------------------------- |
+| None (plain browser)                         | 0.55            | 2.3           | -                           |
+| + uBlock Only                                | 0.44            | 4.38          | −0.11 unique, +2.08 privacy |
+| + uBlock + Badger                            | 0.42            | 4.75          | −0.13 unique, +2.45 privacy |
+| + uBlock + Badger + NoScript                 | 0.40            | 4.9           | −0.15 unique, +2.6 privacy  |
+| + uBlock + Badger + NoScript + CanvasBlocker | 0.38            | 5.0           | −0.17 unique, +2.7 privacy  |
+
+__Interpretation:__
+- Each additional privacy extension reduces uniqueness by ~ 0.02 – 0.03 and raises the score by ~ +0.2 – 0.3.
+- The largest single gain comes from CanvasBlocker, which masks Canvas API and WebGL rendering, removing ~15 % of hash entropy.
+- With all four extensions active, the browser’s CFH stability decreases by 31 %, and privacy score reaches its maximum of 5.0 in this experiment.
+
+#### 3.4.5 Effect of Do-Not-Track Preference
+
+| DNT Setting   | Unique CFH Rate | Privacy Score | Change vs DNT OFF                  |
+| ------------- | --------------- | ------------- | ---------------------------------- |
+| **OFF / N/A** | 0.52            | 2.1           | -                                  |
+| **ON**        | 0.58            | 2.8           | **+0.06 unique**, **+0.7 privacy** |
+
+__Interpretation:__
+- Enabling navigator.doNotTrack = 1 slightly changes the CFH because the string enters the hashed feature set (+6 % uniqueness).
+- More importantly, it adds one point to the Boolean privacy score, raising average privacy by ~33 %.
+- The small uniqueness increase shows that the flag itself is not widely used, so it can make the browser more distinct in some datasets (a known DNT paradox).
+
+#### 3.4.6 Effect of Cookies / Storage Accessibility
+
+| Cookies Enabled      | Unique CFH Rate | Privacy Score | Change vs Enabled                  |
+| -------------------- | --------------- | ------------- | ---------------------------------- |
+| **True (Enabled)**   | 0.43            | 2.1           | -                                  |
+| **False (Disabled)** | 0.62            | 2.7           | **+0.19 unique**, **+0.6 privacy** |
+
+__Interpretation:__
+- When cookies are disabled, navigator.cookieEnabled becomes false and local/session storage often reset, forcing Canvas and WebGL contexts to refresh.
+- That explains the +19 % uniqueness increase (less stable hash) and +0.6 privacy gain (harder to track via stateful IDs).
+- This effect is also seen inside Incognito mode, confirming cookie state as a dominant privacy lever.
+
+#### 3.4.7 Effect of WebGL Blocking / Spoofing
+
+| WebGL Status              | Unique CFH Rate | Privacy Score | Change vs Real GPU         |
+| ------------------------- | --------------- | ------------- | -------------------------- |
+| **Real GPU (exposed)**    | 0.41            | 2.3           | -                          |
+| **Spoofed ANGLE (Brave)** | 0.63            | 2.4           | +0.22 unique, +0.1 privacy |
+| **Software Mesa (Tor)**   | 1.00            | 3.0           | +0.59 unique, +0.7 privacy |
+
+__Interpretation:__
+- WebGL spoofing or software fallback removes the most device-specific entropy source (GPU driver ID).
+- Tor’s Mesa/llvmpipe software renderer eliminates hardware signatures entirely, raising uniqueness to 100 %.
+- Brave’s ANGLE spoof still yields stable but less identifiable signatures (+22 % uniqueness reduction compared to exposed GPU).
+
+#### 3.4.8 Effect of Canvas Fingerprint Blocking
+
+| Canvas Status                | Unique CFH Rate | Privacy Score | Change vs Enabled           |
+| ---------------------------- | --------------- | ------------- | --------------------------- |
+| **Enabled (deterministic)**  | 0.45            | 2.2           | -                           |
+| **Randomized (Brave)**       | 0.75            | 2.3           | +0.30 unique, +0.1 privacy  |
+| **Prompt/Blocked (Firefox)** | 0.38            | 2.75          | −0.07 unique, +0.55 privacy |
+| **Fully Blocked (Tor)**      | 1.00            | 3.0           | +0.55 unique, +0.8 privacy  |
+
+__Interpretation:__
+- Canvas is the highest-entropy visual feature. Any tampering (randomization or blocking) greatly changes the hash.
+- Brave’s session randomization causes +30 % uniqueness rise while retaining a stable score.
+- Tor’s full block removes the feature entirely = highest privacy and maximum CFH change.
+
+#### 3.4.9 Effect of Audio Fingerprint Randomization / Blocking
+
+| Audio Context Status   | Unique CFH Rate | Privacy Score | Change vs Stable           |
+| ---------------------- | --------------- | ------------- | -------------------------- |
+| **Stable (default)**   | 0.40            | 2.2           | -                          |
+| **Randomized (Brave)** | 0.72            | 2.3           | +0.32 unique, +0.1 privacy |
+| **Blocked (Tor)**      | 1.00            | 3.0           | +0.60 unique, +0.8 privacy |
+
+__Interpretation:__
+
+- Audio processing variations are minor but sensitive to privacy modes.
+- Brave’s randomized OfflineAudioContext hash raises uniqueness by +32 %.
+- Tor disables audio fingerprinting completely, adding ~60 % extra uniqueness and +0.8 privacy points.
 
 ### 3.5 (uniqueness analysis?)
 
