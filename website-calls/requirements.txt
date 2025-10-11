@@ -1,3 +1,2 @@
 requests
-beautifulsoup4==4.14.2
 selenium==4.23.1

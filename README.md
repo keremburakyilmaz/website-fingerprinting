@@ -2,7 +2,7 @@
 
 This is the final repository for the project in 'DD2391 - Cybersecurity Overview' at KTH in P1 2025 of group members Kerem Burak Yilmaz, Manuel Michael Voit and Frederic Jonathan Lorenz (Group 12).
 
-Browser fingerprinting poses a significant privacy risk on the modern web by enabling websites to uniquely identify and track users based on subtle differences in their browser/system settings or hardware devices, even in the absence of cookies or other traditional tracking mechanisms. This project addresses the challenge of understanding, demonstrating, and evaluating the effectiveness of fingerprinting techniques and anti-fingerprinting measures. This is achieved by implementing a browser fingerprinting demonstrator (webserver), which collects fingerprinting features, calculates a final fingerprint ID (hash) and can store this information + user data in a DB. Furthermore, an automated way to test anti-fingerprinting techniques (client-side) has been implemented using Selenium, in order to be able to make a statement about their effectiveness. Our goal is to systematically analyze how different browsers, privacy settings, and extensions impact the uniqueness and persistence of browser fingerprints, thereby informing users and developers about the strengths and limitations of current privacy-enhancing technologies.
+Browser fingerprinting poses a significant privacy risk on the modern web by enabling websites to uniquely identify and track users based on subtle differences in their browser/system settings or hardware devices, even in the absence of cookies or other traditional tracking mechanisms. This project addresses the challenge of understanding, demonstrating, and evaluating the effectiveness of fingerprinting techniques and anti-fingerprinting measures. This is achieved by implementing a browser fingerprinting demonstrator (webserver), which collects fingerprinting features, calculates a final fingerprint ID (hash) and can store this information + user data in a database. Furthermore, an automated way to test anti-fingerprinting techniques (client-side) has been implemented using Selenium, in order to be able to make a statement about their effectiveness. Our goal is to systematically analyze how different browsers, privacy settings, and extensions impact the uniqueness and persistence of browser fingerprints, thereby informing users and developers about the strengths and limitations of current privacy-enhancing technologies.
 
 
 ## 1 Installation / Use
@@ -85,15 +85,11 @@ Install them (+geckodriver) under these paths:
 "geckodriver": "C:/Program Files/Tor Browser/Browser/geckodriver.exe"
 ```
 
-## 2 Problem Statement
-
-Needs to be added (required according to canvas page)
-
-## 3 Project description
+## 2 Project description
 
 Feel free to add more sections
 
-### 3.1 Fingerprint collection
+### 2.1 Fingerprint collection
 
 We used multiple methods to collect the fingerprints of the user. We tried to both include high entropy features (more unique and stable) and low entropy features (less unique and unstable) in order to make our analysis fair. 
 
@@ -106,13 +102,13 @@ We used multiple methods to collect the fingerprints of the user. We tried to bo
 
 We also created a feature we called __"comprehensive fingerprint hash" (CFH)__, which was basically all the features concatenated together and hashed, in order to distinguish between configurations easier. However, the features WebRTC Candidate, WASM Compile Time (ms), Mouse Sample and Scroll Sample were removed from this since they were extremely unstable and caused our comprehensive hash to be different in each configuration.
 
-### 3.2 Webserver and database
+### 2.2 Webserver and database
 
-### 3.3 Anti-Fingerprinting measures and client-automation
+### 2.3 Anti-Fingerprinting measures and client-automation
 
 To evaluate the effectiveness of Anti-fingerprinting privacy-enhancing technologies (AFPETs), our project implements a varied suite of antifingerprinting measures and automated client testing. By programmatically controlling different browsers with privacy-enhancing settings and extensions, we systematically collect and analyze fingerprinting data under a variety of conditions. This approach enables reproducible, large-scale testing of both standard and hardened browser environments, providing valuable insights into the strengths and limitations of AFPETs analyzed by us.
 
-#### 3.3.1 Research on Severity/Value of fingerprinting features
+#### 2.3.1 Research on Severity/Value of fingerprinting features
 
 In order to determine what AFPETs to analyze and use in the scope of this project, it is firstly important to understand what makes a fingerprint feature valuable for a website provider/fingerprint collector. In general, the five following characteristics of a fingerprinting feature are relevant [1]: 
 
@@ -124,7 +120,7 @@ In order to determine what AFPETs to analyze and use in the scope of this projec
 
 These parameters help understand against what kind of fingerprinting features users should try to protect themselves the most, therefore this insight will be incorporated into the following research of ours. 
 
-#### 3.3.2 High and Low Level mitigation techniques
+#### 2.3.2 High and Low Level mitigation techniques
 On a high-level, AFPETs focus on reducing the effectiveness of browser fingerprinting by addressing the root causes of uniqueness and trackability. A very important concept to note here is that in many cases, there is a trade-off between an increased fingerprinting and user-experience, since many mitigations techniques break the way websites were designed to work originally. Generally it can be stated that stopping browser fingerprinting is an effort that both web developers as well as end-users can contribute to. A website operator reconsider if introducing a new feature of the webpage adds a lot of entropy/uniqueness to the fingerprint and if that justifies the user benefit. Also 'Do Not Track' (DNT/GPC) headers sent by the user can be complied with by the server, however this is not enforced. The issue is that server-side compliance with privacy signals like DNT or GPC is entirely voluntary - malicious or profit-driven websites can simply ignore these requests, and users often have no way of knowing whether their preferences are being respected. As a result, relying solely on server-side cooperation is insufficient for robust privacy protection. Therefore, in this project, we focus on AFPETs that operate from the user side, empowering individuals to take direct control over their own fingerprinting exposure regardless of server behavior.
 
 Hands-On mitigation techniques that can be used by clients can, in general, be classified into the following categories:
@@ -139,7 +135,7 @@ Hands-On mitigation techniques that can be used by clients can, in general, be c
 The following tests we will focus on the first four categories because they offer practical, user-accessible ways to reduce fingerprinting risk without requiring major changes to browsing habits or infrastructure.
 
 
-#### 3.3.3 Development of test plan for AFPETs
+#### 2.3.3 Development of test plan for AFPETs
 
 For our evaluation of AFPETs, we designed a systematic testing setup that reflects both real-world user choices and the diversity of available privacy tools. We selected four major browsers: Chrome, Firefox, Brave, and TOR. This decision was made, because they represent a spectrum from mainstream to privacy-focused, each with different default behaviors and support for privacy features. For each browser, we tested two configurations: The default (base) setting, which provides minimal fingerprinting protection (depending on browser), and an enhanced configuration with all available privacy settings maximized. For more information about the privacy-enhanced settings for each browser, please refer to the browser-automation scripts, which can be found under `./website-calls/show_fp_MacOS.py` or `./website-calls/show_fp_Windows.py` respectively. More on those later.
 
@@ -147,9 +143,9 @@ Furthermore, we incorporated popular privacy extensions: uBlock Origin, Privacy 
 
 By systematically varying browser, privacy settings, extension state, and incognito mode, we are able to generate a wide range of fingerprinting scenarios. This approach enables us to assess the effectiveness of each AFPET and their combinations, providing insights into both the strengths and limitations of each privacy tool. Our automated client uses Selenium to ensure reproducibility and coverage of all combinations, making our results robust and representative of real-world usage patterns.
 
-#### 3.3.4 Browser-automation using Selenium (Testing fingerprinting website)
+#### 2.3.4 Browser-automation using Selenium (Testing fingerprinting website)
 
-##### 3.3.4.1 Failed attempts and hurdles
+##### 2.3.4.1 Failed attempts and hurdles
 
 In order to create a comparable testing environment, the original idea was to user a docker virtualized environment, for the purpose of hosting the client that we'd use to perform the website calls, in order to test our fingerprinting abilities and mitigations. This would come with the advantage, that we could easily adapt and rebuild the container to perform tests on different OS'es and their effect on the fingerprinting findings. However, after several failed attempts, this topic was discussed again and we discussed that it might be unclear how using a docker-container to perform the website calls might affect the browser-fingerprint. Concretely, we were worried about the examples being too unrealistic, since being in a docker-container would provide 'lab-environments', which is great for repeatibility, but poor for realism. For instance, it was unclear what the abstraction of hardware did to the fingerprint, since the browser cannot see a 'real' hardware stack, so fingerprinting features depending on those (WebGL, Canvas or Audio-FP) could not be represented realistically. These and further factors lead to us abandoning the idea of testing inside a docker-container. The failed attempts can be seen in `./website-calls/obsolete/`.
 
@@ -157,7 +153,7 @@ The following approach was to utilize a very standardized virtual machine. This 
 
 Therefore our python script to automate browser testing was adapted for both MacOs `./website-calls/show_fp_MacOS.py` as well as Windows `./website-calls/show_fp_Windows.py`. Please follow the installation instructions mentioned up top to get these running. One Caveat is that the TOR Browser is designed in order to resist browser automation and scripted control. This was done, since enabling automation requires to expose an inter-process communication API, which itself can be used to break anonymity. As the browsers philosophy is based on preventing this from happening, remote-control protocols like Marionette (used by Selenium) are disabled by default. There are certain projects like 'tbselenium' which break these intentional automation-blockers by TOR browser. However, since this is only available for Linux and Windwos (not MacOS), we ultimately decided to only test Chrome, Brave and Firefox on MacOS and include TOR-browser only on our tests in the Windows environment. 
 
-##### 3.3.4.2 General functionality of Selenium browser-automation script 
+##### 2.3.4.2 General functionality of Selenium browser-automation script 
 
 The first step when running the Selenium browser-automation script is to pass arguments, which are then parsed and affect the rest of the execution: 
 
@@ -209,13 +205,13 @@ As can be seen above, the JSON includes all data that is relevant to the individ
 
 In the next and final step, this uniform JSON file is passed to the `/api/testing` endpoint of our fingerprinting server using a POST request. This triggers the server to store the passed data in its databse. From this aggregated dataset, a comprehensive analysis of all different browsers (+ settings, extensions, incognito modes) and their respective fingerprinting surface can be conducted.
 
-##### 3.3.4.3 Automated testing procedure using bash script
+##### 2.3.4.3 Automated testing procedure using bash script
 
 The general idea is to make calls to the webserver using different combinations of browsers, browser-privacy-settings, privacy modes (incognito) and extensions. Since this creates a big amount of different possible combinations, it is necessary to automate this task. Using a bash script on MacOS (`./website-calls/run_all_combinations.sh`) and a batch script on Windows (`./website-calls/run_all_combinations.bat`), this was accomplished.
 
-Despite this accomplished automation, it was decided to restrict the amount of different combinations, in order to work with/analyze a more manageable dataset size. Concretely, we ended up using four browsers (three on MacOS): Chrome, Brave, Firefox and TOR. For each browser, the incognito mode was toggled on/off, a maximum of browser privacy settings (or none) were applied (on/off) and either all exensions (4 on geckodriver browsers, 3 on chromium browsers) (or none) were applied (on/off). This leaves 2^3=8 combinations per browser. Furthermore, every combination was used to make two calls to the webserver, in order to verify whether there were any changes to the detectable fingerprint. In total 3x8x2=48 website calls were made on MacOS and 4x8x2=64 calls were made on Windows.
+Despite this available automation, it was decided to restrict the amount of different combinations, in order to work with/analyze a more manageable dataset size. Concretely, we ended up using four browsers (three on MacOS): Chrome, Brave, Firefox and TOR. For each browser, the incognito mode was toggled on/off, a maximum of browser privacy settings (or none) were applied (on/off) and either all exensions (4 on geckodriver browsers, 3 on chromium browsers) (or none) were applied (on/off). This leaves 2^3=8 combinations per browser. Furthermore, every combination was used to make two calls to the webserver, in order to verify whether there were any changes to the detectable fingerprint. In total 3x8x2=48 website calls were made on MacOS and 4x8x2=64 calls were made on Windows.
 
-### 3.4 Data analysis
+### 2.4 Data analysis
 
 We created a metric called privacy score, which showcases the amount of settings and extension enabled to increase privacy:
 
@@ -245,7 +241,7 @@ __Interpretation:__
 
 ![alt text](uniqueness-privacy-tradeoff.png)
 
-#### 3.4.1 Cross Browser Comparison
+#### 2.4.1 Cross Browser Comparison
 
 | Browser     | Unique CFH rate | Avg. Privacy Score | Uniqueness vs Chrome | Privacy vs Chrome | Interpretation                                                                                                                                                  |
 | ----------- | --------------- | ------------------ | ---------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -258,7 +254,7 @@ __Interpretation:__
 Tor > Brave > Firefox > Chrome in both uniqueness and privacy.
 The magnitude of difference is large: Tor’s CFH variability is 2.6× higher than Brave’s (1.00 / 0.38) and infinite relative to Chrome’s 0.00 baseline.
 
-#### 3.4.2 Effects of Incognito Mode
+#### 2.4.2 Effects of Incognito Mode
 
 | Mode      | Unique CFH Rate | Privacy Score | Change vs Normal                             |
 | --------- | --------------- | ------------- | --------------------------------------- |
@@ -270,7 +266,7 @@ __Interpretation:__
 - That explains the ~43 % = 63 % uniqueness rise.
 - The privacy score gain (+0.63 ~ +28 %) confirms more “blocked/off” flags (cookies off, DNT = true).
 
-#### 3.4.3 Effects of uBlock Origin Extension:
+#### 2.4.3 Effects of uBlock Origin Extension:
 
 | Condition      | Unique CFH Rate | Privacy Score | Change vs Baseline (OFF)                |
 | -------------- | --------------- | ------------- | --------------------------------------- |
@@ -282,7 +278,7 @@ __Interpretation:__
 - Fewer active APIs mean fingerprints become less variable across runs (−19 % uniqueness), but much harder to profile (+3.63 points ~ +484 % privacy gain).
 - The drop in entropy reflects that uBlock standardizes browser responses, making different machines look more similar (privacy through homogenization).
 
-#### 3.4.4 Combined Extension Stack (Privacy Badger / NoScript / CanvasBlocker)
+#### 2.4.4 Combined Extension Stack (Privacy Badger / NoScript / CanvasBlocker)
 
 | Extension Configuration                      | Unique CFH Rate | Privacy Score | Change vs No Extensions     |
 | -------------------------------------------- | --------------- | ------------- | --------------------------- |
@@ -297,7 +293,7 @@ __Interpretation:__
 - The largest single gain comes from CanvasBlocker, which masks Canvas API and WebGL rendering, removing ~15 % of hash entropy.
 - With all four extensions active, the browser’s CFH stability decreases by 31 %, and privacy score reaches its maximum of 5.0 in this experiment.
 
-#### 3.4.5 Effect of Do-Not-Track Preference
+#### 2.4.5 Effect of Do-Not-Track Preference
 
 | DNT Setting   | Unique CFH Rate | Privacy Score | Change vs DNT OFF                  |
 | ------------- | --------------- | ------------- | ---------------------------------- |
@@ -309,7 +305,7 @@ __Interpretation:__
 - More importantly, it adds one point to the Boolean privacy score, raising average privacy by ~33 %.
 - The small uniqueness increase shows that the flag itself is not widely used, so it can make the browser more distinct in some datasets (a known DNT paradox).
 
-#### 3.4.6 Effect of Cookies / Storage Accessibility
+#### 2.4.6 Effect of Cookies / Storage Accessibility
 
 | Cookies Enabled      | Unique CFH Rate | Privacy Score | Change vs Enabled                  |
 | -------------------- | --------------- | ------------- | ---------------------------------- |
@@ -321,7 +317,7 @@ __Interpretation:__
 - That explains the +19 % uniqueness increase (less stable hash) and +0.6 privacy gain (harder to track via stateful IDs).
 - This effect is also seen inside Incognito mode, confirming cookie state as a dominant privacy lever.
 
-#### 3.4.7 Effect of WebGL Blocking / Spoofing
+#### 2.4.7 Effect of WebGL Blocking / Spoofing
 
 | WebGL Status              | Unique CFH Rate | Privacy Score | Change vs Real GPU         |
 | ------------------------- | --------------- | ------------- | -------------------------- |
@@ -334,7 +330,7 @@ __Interpretation:__
 - Tor’s Mesa/llvmpipe software renderer eliminates hardware signatures entirely, raising uniqueness to 100 %.
 - Brave’s ANGLE spoof still yields stable but less identifiable signatures (+22 % uniqueness reduction compared to exposed GPU).
 
-#### 3.4.8 Effect of Canvas Fingerprint Blocking
+#### 2.4.8 Effect of Canvas Fingerprint Blocking
 
 | Canvas Status                | Unique CFH Rate | Privacy Score | Change vs Enabled           |
 | ---------------------------- | --------------- | ------------- | --------------------------- |
@@ -348,7 +344,7 @@ __Interpretation:__
 - Brave’s session randomization causes +30 % uniqueness rise while retaining a stable score.
 - Tor’s full block removes the feature entirely = highest privacy and maximum CFH change.
 
-#### 3.4.9 Effect of Audio Fingerprint Randomization / Blocking
+#### 2.4.9 Effect of Audio Fingerprint Randomization / Blocking
 
 | Audio Context Status   | Unique CFH Rate | Privacy Score | Change vs Stable           |
 | ---------------------- | --------------- | ------------- | -------------------------- |
@@ -362,18 +358,30 @@ __Interpretation:__
 - Brave’s randomized OfflineAudioContext hash raises uniqueness by +32 %.
 - Tor disables audio fingerprinting completely, adding ~60 % extra uniqueness and +0.8 privacy points.
 
-### 3.5 (uniqueness analysis?)
+### 2.5 (uniqueness analysis?)
 
 
-## 4 Individual contributions
+## 3 Individual contributions
 
-### 4.1 Kerem Burak Yilmaz
+### 3.1 Kerem Burak Yilmaz
 
-### 4.2 Manuel Michael Voit
+### 3.2 Manuel Michael Voit
 
-### 4.3 Frederic Jonathan Lorenz 
+### 3.3 Frederic Jonathan Lorenz 
+During the project, my individual contributions focused on both research and technical implementation aspects of anti-fingerprinting measures. I began by investigating the severity of various fingerprinting features (2.3.1), identifying which browser and system attributes are most valuable to fingerprint collectors and therefore most critical to protect. This research was used as foundation for a review of existing mitigation techniques, evaluating their effectiveness and practicality for real-world use (2.3.2). Based on these findings, I developed a concrete test plan that balanced thoroughness with feasibility (keeping the generated data in manageable quantities). This was done by selecting a representative subset of browsers (Chrome, Firefox, Brave, and Tor), privacy extensions, browser settings, and the use of incognito mode to systematically analyze their impact on fingerprint uniqueness and privacy. (2.3.3)
 
-## 5 References
+On the technical side, I conceptualized and implemented the browser automation script using Selenium, with a primary focus on the MacOS environment. This involved designing the argument parsing logic, building browser drivers, and integrating the automated loading and testing of privacy extensions. I also researched and implemented a wide range of browser privacy settings, ensuring that the script could flexibly switch between base and privacy-maximized configurations. Additionally, I handled troubleshooting and iterative improvements to the script, including attempts to standardize the client environment using containers and virtual machines (although these approaches were ultimately set aside in favor of direct host OS testing for simplicity and realism reasons). Furthermore, I collaborated with my peers to make the script is compatible with the webserver (fetch FP data and post JSON to API). The entire resulting client test script (except for the extension of it that makes Tor automation on Windows possible) was my work and enabled automated, reproducible browser fingerprinting experiments.
+
+Finally, I contributed to the written report, by authoring the following sections:
+-	Problem statement
+-	Installation/Use of Selenium automated Client (1.2)
+-	Anti-Fingerprinting measures and client-automation (2.3)
+-	Individual contribution (3.3)
+
+
+
+
+## 4 References
 [1] https://www.w3.org/TR/fingerprinting-guidance/
 
 [2] https://jscholarship.library.jhu.edu/server/api/core/bitstreams/22de9dbc-ebe5-4a45-ae00-25833b6ad227/content
