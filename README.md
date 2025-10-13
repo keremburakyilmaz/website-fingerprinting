@@ -106,7 +106,7 @@ We also created a feature we called __"comprehensive fingerprint hash" (CFH)__, 
 
 ### 2.3 Anti-Fingerprinting measures and client-automation
 
-To evaluate the effectiveness of Anti-fingerprinting privacy-enhancing technologies (AFPETs), our project implements a varied suite of antifingerprinting measures and automated client testing. By programmatically controlling different browsers with privacy-enhancing settings and extensions, we systematically collect and analyze fingerprinting data under a variety of conditions. This approach enables reproducible, large-scale testing of both standard and hardened browser environments, providing valuable insights into the strengths and limitations of AFPETs analyzed by us.
+To evaluate the effectiveness of anti-fingerprinting privacy-enhancing technologies (AFPETs), our project implements a varied suite of antifingerprinting measures and automated client testing. By programmatically controlling different browsers with privacy-enhancing settings and extensions, we systematically collect and analyze fingerprinting data under a variety of conditions. This approach enables reproducible, large-scale testing of both standard and hardened browser environments, providing valuable insights into the strengths and limitations of AFPETs analyzed by us.
 
 #### 2.3.1 Research on Severity/Value of fingerprinting features
 
@@ -213,111 +213,116 @@ Despite this available automation, it was decided to restrict the amount of diff
 
 ### 2.4 Data analysis
 
-We created a metric called privacy score, which showcases the amount of settings and extension enabled to increase privacy:
+We created a metric called __privacy score__, which showcases the amount of settings and extension enabled to increase privacy:
 
-Privacy Score = (Incognito + DoNotTrack + uBlock + Badger + NoScript + CanvasBlocker) + (1 − CookiesEnabled)
+Privacy Score = (Incognito + uBlock + Badger + NoScript + CanvasBlocker)
 
 We used a binary system to show if the setting is open or not. 
 
 An example would be:
 
-| Feature                    | Chrome                                                                             | Tor                                                                                          |
-| -------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Incognito                  | 0                                                                                  | 1                                                                                            |
-| Do Not Track               | 0                                                                                  | 1                                                                                            |
-| uBlock Origin              | 0                                                                                  | 1                                                                                            |
-| Privacy Badger             | 0                                                                                  | 1                                                                                            |
-| NoScript                   | 0                                                                                  | 1                                                                                            |
-| CanvasBlocker              | 0                                                                                  | 1                                                                                            |
-| Cookies Enabled (inverted) | 0 (true = 0)                                                                       | 1 (false = 1)                                                                                |
-
+| Feature                    | Chrome  | Tor |
+| -------------------------- | ------- | --- |
+| Incognito                  | 0       | 1   |
+| Do Not Track               | 0       | 1   |
+| uBlock Origin              | 0       | 1   |
+| Privacy Badger             | 0       | 1   |
+| NoScript                   | 0       | 1   |
+| CanvasBlocker              | 0       | 1   |
 
 __Interpretation:__
 - Higher privacy score = higher protection but also more “drift” (different hash each session).
 - Lower privacy score = stable but trackable.
-- We found a correlation of −0.74 between privacy score and fingerprint uniqueness.
-- That means: the more private your setup, the less predictable and less reusable its fingerprint.
-- However, in some features like DNT, cookies disabling, Canvas/WebGL/Audio blocking etc., we saw that uniqueness increase alongside the privacy. This is the __privacy-uniqueness paradox__, where features improves policy-level privacy but worsens statistical-level anonymity.
+- We found a correlation of −0.74 between privacy score and fingerprint uniqueness. It means that the more private your setup, the less predictable and less reusable its fingerprint.
+- However, in some features, we saw that uniqueness increase alongside the privacy. This is what we called, __privacy-uniqueness paradox__, where features improves policy-level privacy but worsens statistical-level anonymity, which we will talk about more later on.
 
-![alt text](uniqueness-privacy-tradeoff.png)
+We also created another metric called __unique CFH rate__ to evaluate how stable each browser configuration was. This value measures the uniqueness rate of fingerprints in every configuration. For example for this mock configuration:
+
+| CFH hash    | Count (how many times seen)  | Unique? |
+| ----------- | --------------------------   | ------- |
+| abc123...   | 3                            | No      |
+| def456...   | 1                            | Yes     |
+| ghi789...   | 1                            | Yes     |
+| jkl012...   | 2                            | No      |
+
+Unique CFH rate would be 2 (total number of unique CFH's) / 3 + 1 + 1 + 2 (total number of CFH) = 0.2875 = ~%29
+
+We isolated every variable and ran this test through each configuration of that set variable to find this metric.
+
+__Interpretation:__
+- 1.0 unique CFH rate means that every run creates a different hash, meaning that it is unstable and cannot be used to track the user. As unique CFH rate comes closer to 1, it means that it is closer to being secure and private.
+- 0.0 unique CFH rate means that every run creates the same hash, meaning that it is stable and persistent, which can be used to track the user. As unique CFH rate comes closer to 0, it means that it is closer to being less secure and private.
 
 #### 2.4.1 Cross Browser Comparison
 
-| Browser     | Unique CFH rate | Avg. Privacy Score | Uniqueness vs Chrome | Privacy vs Chrome | Interpretation                                                                                                                                                  |
-| ----------- | --------------- | ------------------ | ---------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Chrome**  | 0.00            | 2.25               | -                      | -                   | Fully deterministic: every run identical.                                                                                                                       |
-| **Brave**   | 0.75            | 2.25               | +0.75           | 0.00                | 75 % higher uniqueness due to randomized Canvas/Audio. Privacy score same, meaning Brave’s *built-in* defenses don’t all register in your simple Boolean score. |
-| **Firefox** | 0.38            | 2.75               | +0.38              | +0.50          | Partial blocking adds moderate entropy and small privacy gain.                                                                                                  |
-| **Tor**     | 1.00            | 3.00               | +1.00              | +0.75           | Every fingerprint hash unique = perfect session isolation, highest privacy.                                                                                     |
+| Browser     | Unique CFH rate | Avg. Privacy Score | Uniqueness vs Chrome | Privacy vs Chrome | Interpretation  |
+| ----------- | --------------- | ------------------ | ---------------------| ----------------- | --------------- |
+| **Chrome**  | 0.00            | 2.25               | -                    | -                 | Fully deterministic: every run identical.|
+| **Brave**   | 0.75            | 2.25               | +0.75                | 0.00              | 75 % higher uniqueness due to randomized Canvas/Audio. Privacy score same, meaning Brave’s *built-in* defenses don’t all register in your simple Boolean score.|
+| **Firefox** | 0.38            | 2.75               | +0.38                | +0.50             | Partial blocking adds moderate entropy and small privacy gain.|
+| **Tor**     | 1.00            | 3.00               | +1.00                | +0.75             | Every fingerprint hash unique = perfect session isolation, highest privacy.|
 
-
-Tor > Brave > Firefox > Chrome in both uniqueness and privacy.
-The magnitude of difference is large: Tor’s CFH variability is 2.6× higher than Brave’s (1.00 / 0.38) and infinite relative to Chrome’s 0.00 baseline.
+__Interpretation:__
+- Tor > Brave > Firefox > Chrome in both uniqueness and privacy.
+- The magnitude of difference is large: Tor’s CFH variability is 2.6× higher than Brave’s (1.00 / 0.38) and infinite relative to Chrome’s 0.00 baseline.
 
 #### 2.4.2 Effects of Incognito Mode
 
-| Mode      | Unique CFH Rate | Privacy Score | Change vs Normal                             |
-| --------- | --------------- | ------------- | --------------------------------------- |
-| Normal    | 0.44            | 2.25          | -                                       |
-| Incognito | 0.63            | 2.88          | **+0.19 uniqueness**, **+0.63 privacy** |
+| Mode          | Unique CFH Rate | Change vs Normal |
+| ---------     | --------------- | -----------------|
+| **Default**   | 0.44            | -                |
+| **Incognito** | 0.63            | +0.19 uniqueness |
 
 __Interpretation:__
-- Incognito isolates cookies, localStorage, and session identifiers, altering navigator.cookieEnabled to false and sometimes re-initializing WebGL/Canvas contexts.
-- That explains the ~43 % = 63 % uniqueness rise.
-- The privacy score gain (+0.63 ~ +28 %) confirms more “blocked/off” flags (cookies off, DNT = true).
+- Incognito isolates cookies, localStorage, and session identifiers, altering navigator.cookieEnabled to false and sometimes re-initializing WebGL/Canvas contexts. This explains the ~%43 uniqueness rise. By making each session unique, users are more untraceble than default.
 
 #### 2.4.3 Effects of uBlock Origin Extension:
 
-| Condition      | Unique CFH Rate | Privacy Score | Change vs Baseline (OFF)                |
-| -------------- | --------------- | ------------- | --------------------------------------- |
-| **uBlock OFF** | 0.63            | 0.75          | -                                       |
-| **uBlock ON**  | 0.44            | 4.38          | **−0.19 uniqueness**, **+3.63 privacy** |
+| Condition      | Unique CFH Rate | Change vs Baseline (OFF)|
+| -------------- | --------------- | ------------------------|
+| **uBlock OFF** | 0.63            | -                       |
+| **uBlock ON**  | 0.44            | −0.19 uniqueness        |
 
 __Interpretation:__
 - Enabling uBlock Origin disables or spoofs numerous tracking APIs (e.g., navigator.plugins, media enumeration lists).
-- Fewer active APIs mean fingerprints become less variable across runs (−19 % uniqueness), but much harder to profile (+3.63 points ~ +484 % privacy gain).
-- The drop in entropy reflects that uBlock standardizes browser responses, making different machines look more similar (privacy through homogenization).
+- Fewer active APIs mean fingerprints become less variable across runs (~%30 uniqueness drop). And this is one of the examples of the privacy-uniqeness paradox. It might be statistically worse, however it makes the targets harder to track by making them more anonymous. 
+
+__Note:__
+- The identical numeric pattern (0.63 and 0.44) between the Incognito and uBlock Origin tests is coincidental.
+- Each feature was toggled independently using identical configurations, but both affect high-entropy fingerprint features (like Canvas, WebGL, Audio).
+- Incognito regenerates context-dependent identifiers, while uBlock Origin disables or hides several APIs, leading to comparable proportions of changed CFHs even through different underlying mechanisms.
 
 #### 2.4.4 Combined Extension Stack (Privacy Badger / NoScript / CanvasBlocker)
 
-| Extension Configuration                      | Unique CFH Rate | Privacy Score | Change vs No Extensions     |
-| -------------------------------------------- | --------------- | ------------- | --------------------------- |
-| None (plain browser)                         | 0.55            | 2.3           | -                           |
-| + uBlock Only                                | 0.44            | 4.38          | −0.11 unique, +2.08 privacy |
-| + uBlock + Badger                            | 0.42            | 4.75          | −0.13 unique, +2.45 privacy |
-| + uBlock + Badger + NoScript                 | 0.40            | 4.9           | −0.15 unique, +2.6 privacy  |
-| + uBlock + Badger + NoScript + CanvasBlocker | 0.38            | 5.0           | −0.17 unique, +2.7 privacy  |
+We noticed that we have 4 different combinations of extension configuration:
+
+| uBlock | Badger | NoScript | CanvasBlocker | Likely source              | Description                                       |
+| :----: | :----: | :------: | :-----------: | :------------------------- | :------------------------------------------------ |
+|    0   |    0   |     0    |       0       | Any browser w/o extensions | Default base configuration                        |
+|    0   |    0   |     1    |       0       | Tor                        | NoScript built-in                                 |
+|    1   |    1   |     1    |       0       | Chromium (Chrome/Brave)    | All compatible .crx extensions loaded             |
+|    1   |    1   |     1    |       1       | Firefox                    | All four extensions (.xpi) supported              |
+
+| uBlock | Badger | NoScript | CanvasBlocker | Unique CFH Rate | Avg. Privacy Score | Rows | 
+| -----: | -----: | -------: | ------------: | --------------: | -----------------: | ---: |
+|      0 |      0 |        0 |             0 |       0.500     |           0.50     |   24 |
+|      0 |      0 |        1 |             0 |       1.000     |           1.50     |    8 |
+|      1 |      1 |        1 |             0 |       0.250     |           4.00     |   16 | 
+|      1 |      1 |        1 |             1 |       0.625     |           4.75     |   16 | 
 
 __Interpretation:__
-- Each additional privacy extension reduces uniqueness by ~ 0.02 – 0.03 and raises the score by ~ +0.2 – 0.3.
-- The largest single gain comes from CanvasBlocker, which masks Canvas API and WebGL rendering, removing ~15 % of hash entropy.
-- With all four extensions active, the browser’s CFH stability decreases by 31 %, and privacy score reaches its maximum of 5.0 in this experiment.
+- Chromium browsers like Chrome or Brave not supporting CanvasBlocker is a huge difference. We can infer that CanvasBlocker increases the privacy score by ~%19 and the uniqueness of CFH's by %150. So by simply using Firefox, users can protect themselves much more.
+- What is counterintuitive in this analysis is how no extensions have higher unique CFH rate. It is also an example of privacy-uniqueness paradox. uBlock + Badger + NoScript stack disables or standartizes many fingerprint results, causing less unique fingerprints but protects the users in anonymity.
+- From this analysis, we can also see that Tor (row 2 where only NoScripts is active) focuses on protection based on session isolation and not anonymity like other extensions.
+- What makes 4th row having much higher uniqueness rate is CanvasBlocker being active, which means that the canvas fingerprint is randomized each time, adding random noises to the fingerprints, helping with session isolation. 
 
-#### 2.4.5 Effect of Do-Not-Track Preference
+---
 
-| DNT Setting   | Unique CFH Rate | Privacy Score | Change vs DNT OFF                  |
-| ------------- | --------------- | ------------- | ---------------------------------- |
-| **OFF / N/A** | 0.52            | 2.1           | -                                  |
-| **ON**        | 0.58            | 2.8           | **+0.06 unique**, **+0.7 privacy** |
+__Note: Next analysises will be done by inferring the fingerprints we collected and the behaviour of browsers rather than direct testing.__
 
-__Interpretation:__
-- Enabling navigator.doNotTrack = 1 slightly changes the CFH because the string enters the hashed feature set (+6 % uniqueness).
-- More importantly, it adds one point to the Boolean privacy score, raising average privacy by ~33 %.
-- The small uniqueness increase shows that the flag itself is not widely used, so it can make the browser more distinct in some datasets (a known DNT paradox).
+---
 
-#### 2.4.6 Effect of Cookies / Storage Accessibility
-
-| Cookies Enabled      | Unique CFH Rate | Privacy Score | Change vs Enabled                  |
-| -------------------- | --------------- | ------------- | ---------------------------------- |
-| **True (Enabled)**   | 0.43            | 2.1           | -                                  |
-| **False (Disabled)** | 0.62            | 2.7           | **+0.19 unique**, **+0.6 privacy** |
-
-__Interpretation:__
-- When cookies are disabled, navigator.cookieEnabled becomes false and local/session storage often reset, forcing Canvas and WebGL contexts to refresh.
-- That explains the +19 % uniqueness increase (less stable hash) and +0.6 privacy gain (harder to track via stateful IDs).
-- This effect is also seen inside Incognito mode, confirming cookie state as a dominant privacy lever.
-
-#### 2.4.7 Effect of WebGL Blocking / Spoofing
+#### 2.4.5 Effect of WebGL Blocking / Spoofing
 
 | WebGL Status              | Unique CFH Rate | Privacy Score | Change vs Real GPU         |
 | ------------------------- | --------------- | ------------- | -------------------------- |
@@ -327,10 +332,10 @@ __Interpretation:__
 
 __Interpretation:__
 - WebGL spoofing or software fallback removes the most device-specific entropy source (GPU driver ID).
-- Tor’s Mesa/llvmpipe software renderer eliminates hardware signatures entirely, raising uniqueness to 100 %.
-- Brave’s ANGLE spoof still yields stable but less identifiable signatures (+22 % uniqueness reduction compared to exposed GPU).
+- Tor’s Mesa/llvmpipe software renderer eliminates hardware signatures entirely, raising uniqueness to %100.
+- Brave’s ANGLE spoof still gives stable but less tracable signatures (~%53 uniqueness rise compared to exposed GPU).
 
-#### 2.4.8 Effect of Canvas Fingerprint Blocking
+#### 2.4.6 Effect of Canvas Fingerprint Blocking
 
 | Canvas Status                | Unique CFH Rate | Privacy Score | Change vs Enabled           |
 | ---------------------------- | --------------- | ------------- | --------------------------- |
@@ -340,11 +345,11 @@ __Interpretation:__
 | **Fully Blocked (Tor)**      | 1.00            | 3.0           | +0.55 unique, +0.8 privacy  |
 
 __Interpretation:__
-- Canvas is the highest-entropy visual feature. Any tampering (randomization or blocking) greatly changes the hash.
-- Brave’s session randomization causes +30 % uniqueness rise while retaining a stable score.
+- Canvas is the highest-entropy visual feature. Any change on it (randomization or blocking) greatly changes the hash.
+- Brave’s session randomization causes ~%67 uniqueness rise while retaining a stable score.
 - Tor’s full block removes the feature entirely = highest privacy and maximum CFH change.
 
-#### 2.4.9 Effect of Audio Fingerprint Randomization / Blocking
+#### 2.4.7 Effect of Audio Fingerprint Randomization / Blocking
 
 | Audio Context Status   | Unique CFH Rate | Privacy Score | Change vs Stable           |
 | ---------------------- | --------------- | ------------- | -------------------------- |
@@ -355,8 +360,12 @@ __Interpretation:__
 __Interpretation:__
 
 - Audio processing variations are minor but sensitive to privacy modes.
-- Brave’s randomized OfflineAudioContext hash raises uniqueness by +32 %.
-- Tor disables audio fingerprinting completely, adding ~60 % extra uniqueness and +0.8 privacy points.
+- Brave’s randomized OfflineAudioContext hash raises uniqueness by %80.
+- Tor disables audio fingerprinting completely, adding %150 extra uniqueness and +0.8 privacy points.
+
+---
+![alt text](uniqueness-privacy-tradeoff.png)
+---
 
 ### 2.5 (uniqueness analysis?)
 
