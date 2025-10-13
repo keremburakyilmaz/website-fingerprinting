@@ -373,6 +373,15 @@ __Interpretation:__
 ## 3 Individual contributions
 
 ### 3.1 Kerem Burak Yilmaz
+During the project, my main focus was on technical implementation with a side of research on how to collect the data, and what it tells. I researched about what fingerprinting techniques are being used in the real world, and how they work, and I implemented the methods I and Manuel found. I created a [mock website](https://youjustgothacked.lol) (a basic website that has only basic HTML/CSS/JavaScript) to collect the fingerprints and show them, which became the foundations of what we currently did with the local server. I also hosted and bought the domain for the website since we want to do a live demo to everyone and show that how easy their fingerprints can be collected. We created the local server version besides this one later, since we wanted our data's to be collected and stored locally.
+
+I also analyzed the data from the test results, trying to understand what each configuration gives us, and how each configuration and toggle affect our privacy. I created metrics to make the analysis more concrete. I also interpreted these analysis and wrote my findings.
+
+Finally, I contributed to the written report, by authoring the following sections:
+- 2.1 Fingerprint collection
+- 2.4 Data analysis
+- 3.1 Individual Contribution
+
 
 ### 3.2 Manuel Michael Voit
 
