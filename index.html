@@ -11,6 +11,10 @@
 <body>
   <header>
     <h1>Fingerprint Features</h1>
+    <div id="comprehensiveHashDisplay" class="hash-display">
+      <h3>Comprehensive Fingerprint Hash:</h3>
+      <div id="hashValue" class="hash-value">Generating...</div>
+    </div>
   </header>
 
   <main>
@@ -228,6 +232,48 @@
     // TLS / DNS / Cert info – only available to network observers
     addFeature("TLS / JA3", "Unavailable in browser JS");
     addFeature("SNI / DNS / Cert Info", "Unavailable in browser JS");
+
+    // ========= COMPREHENSIVE FINGERPRINT HASH =========
+    // Create a single hash from all collected fingerprint data (excluding certain parameters)
+    setTimeout(async () => {
+      try {
+        const allFeatures = {};
+        const featureList = document.getElementById('featureList');
+        const features = featureList.querySelectorAll('li');
+        
+        // Parameters to exclude from comprehensive hash
+        const excludedParams = [
+          'WebRTC Candidate',
+          'WASM Compile Time (ms)',
+          'Mouse Sample',
+          'Scroll Sample'
+        ];
+        
+        features.forEach(li => {
+          const title = li.querySelector('h3').textContent;
+          const value = li.querySelector('pre').textContent;
+          
+          // Only include features that are not in the excluded list
+          if (!excludedParams.includes(title)) {
+            allFeatures[title] = value;
+          }
+        });
+        
+        // Create a comprehensive fingerprint string
+        const fingerprintString = JSON.stringify(allFeatures, Object.keys(allFeatures).sort());
+        const comprehensiveHash = await sha256Hex(fingerprintString);
+        addFeature("Comprehensive Fingerprint Hash", comprehensiveHash);
+        
+        // Update the hash display in the header
+        const hashValueElement = document.getElementById('hashValue');
+        if (hashValueElement) {
+          hashValueElement.textContent = comprehensiveHash;
+          hashValueElement.style.color = '#4CAF50'; // Green color to indicate success
+        }
+      } catch (error) {
+        addFeature("Comprehensive Fingerprint Hash", "Error generating hash");
+      }
+    }, 6000); // Wait for all other features to be collected
 
   </script>
 </body>
