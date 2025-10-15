@@ -145,11 +145,13 @@ The test configuration includes a timestamp, the name of the used browser and bo
 ---
 ![alt text](images/website-fingerprinting-demo.png)
 ---
+
 The demonstration of the concept of browser fingerprinting is divided in two different phases. In the first phase the user visits a website, that fingerprints him and associates a certain behaviour/preference with the created fingerprint. In the second phase this fingerprint is used by the same or potentially other websites to adapt the content based on the saved user behaviour/preference. One prominent example of this are targeted ads.
 
 ---
 ![alt text](images/website-fingerprinting-demo1.png)
 ---
+
 1. User requests the fingerprinting website and gets it from the Express webserver
 
 2. Client browser displays website
@@ -167,6 +169,7 @@ The webserver saves/updates the information in the users table of the database.
 ---
 ![alt text](images/website-fingerprinting-demo2.png)
 ---
+
 The first three steps are identical to what is described above.
 4. Fingerprint is sent to webserver
 This time the request to the webserver with the fingerprint is not triggered by the user. After the fingerprint has been calculated on the client, a request is automatically sent the webserver. This GET request is sent to the `/api/fingerprint` endpoint.
@@ -175,13 +178,15 @@ This time the request to the webserver with the fingerprint is not triggered by 
 7. Webserver responds to the client with the information that was retrieved from the database or an adapted version of the website
 8. Website displays information that fits to the user behaviour/reflects his preferences
 In this simplified example the counter is set to the value that was previously saved in the database. In a real-world example this can be targeted ads that are based on the user’s interests.
+
 ---
 ![alt text](images/website-fingerprinting-load-behaviour.png)
 ---
 
 2.2.2 Automated testing
+
 ---
-![alt text](images/ website-fingerprinting-testing.png)
+![alt text](images/website-fingerprinting-testing.png)
 ---
 
 The overall process for the automated testing relies on the same setup, but is slightly different.
