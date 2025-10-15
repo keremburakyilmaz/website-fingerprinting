@@ -142,33 +142,27 @@ tests
 The test configuration includes a timestamp, the name of the used browser and boolean values indicating if incognito mode, a privacy-enhanced configuration of the browser and certain extensions were used. The test results in the following columns include all the individual fingerprint features from 2.1.
 
 #### 2.2.2 Fingerprinting Demonstration
----
 ![alt text](images/website-fingerprinting-demo.png)
----
 
 The demonstration of the concept of browser fingerprinting is divided in two different phases. In the first phase the user visits a website, that fingerprints him and associates a certain behaviour/preference with the created fingerprint. In the second phase this fingerprint is used by the same or potentially other websites to adapt the content based on the saved user behaviour/preference. One prominent example of this are targeted ads.
 
----
 ![alt text](images/website-fingerprinting-demo1.png)
----
 
 1. User requests the fingerprinting website and gets it from the Express webserver
 
 2. Client browser displays website
-![alt text](images/ website-fingerprinting-features.png)
+![alt text](images/website-fingerprinting-features.png)
 
 3. JS code is executed and calculates fingerprint: In this case the individual values of the fingerprint are displayed on the website and visible to the user. However, this can also happen in the background without the user noticing or consenting to the data processing.
 
 4. Fingerprint and collected user behaviour/preferences are sent to webserver
-![alt text](images/ website-fingerprinting-behaviour.png)
+![alt text](images/website-fingerprinting-behaviour.png)
 In this simplified example the user behaviour/preference is simulated by a button with a counter. The user can decide the click the button to increase the counter. If the user clicks the button, the fingerprint and the number of button clicks (behaviour) are sent as a POST request to the `/api/fingerprint` endpoint.
 
 5. User data is stored in database together with fingerprint
 The webserver saves/updates the information in the users table of the database.
 
----
 ![alt text](images/website-fingerprinting-demo2.png)
----
 
 The first three steps are identical to what is described above.
 4. Fingerprint is sent to webserver
@@ -179,15 +173,11 @@ This time the request to the webserver with the fingerprint is not triggered by 
 8. Website displays information that fits to the user behaviour/reflects his preferences
 In this simplified example the counter is set to the value that was previously saved in the database. In a real-world example this can be targeted ads that are based on the user’s interests.
 
----
 ![alt text](images/website-fingerprinting-load-behaviour.png)
----
 
-2.2.2 Automated testing
+#### 2.2.3 Automated testing
 
----
 ![alt text](images/website-fingerprinting-testing.png)
----
 
 The overall process for the automated testing relies on the same setup, but is slightly different.
 1. Selenium is used to configure and start the browser. The configuration includes browser settings, extensions and incognito mode.
