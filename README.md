@@ -112,6 +112,7 @@ We set up a local webserver and a database for two different reasons:
 2.	Automated testing of different anti-fingerprinting privacy-enhancing technologies (AFPETs) to test their effectiveness
 
 At first the idea was to have a publicly hosted website that the students and other people can visit to view and store their fingerprint for an interactive demonstration of the concept. However, fingerprinting is subject to data protection laws like the General Data Protection Regulation (GDPR) in the EU as it constitutes the processing of personal data. This does not mean, that fingerprinting cannot be used in general. However, it requires the user to actively opt-in and to allow the data processing and there needs to be a legitimate reason for it. [1][2]
+
 The idea was not pursued any further, in order to avoid any legal uncertainties in hosting the website with a correct privacy policy that the user can opt-in to. Therefore, we ended up with a local deployment of a webserver and database that we can use to process our own data.
 
 #### 2.2.1 Setup
@@ -136,6 +137,8 @@ The SQLite3 database consists of two different tables. The users table saves a u
 users
   id (PRIMARY KEY), behaviour
 ```
+
+<br>
 
 The tests table saves a test configuration and the corresponding test results.
 
@@ -176,12 +179,17 @@ The webserver saves/updates the information in the users table of the database.
 ![alt text](images/website-fingerprinting-demo2.png)
 
 The first three steps are identical to what is described above.
-4. Fingerprint is sent to webserver
+
+4. Fingerprint is sent to webserver<br>
 This time the request to the webserver with the fingerprint is not triggered by the user. After the fingerprint has been calculated on the client, a request is automatically sent the webserver. This GET request is sent to the `/api/fingerprint` endpoint.
+
 5. Search for fingerprint in the users table of the database
+
 6. Saved user behaviour/preference is retrieved from the database
+
 7. Webserver responds to the client with the information that was retrieved from the database or an adapted version of the website
-8. Website displays information that fits to the user behaviour/reflects his preferences
+
+8. Website displays information that fits to the user behaviour/reflects his preferences<br>
 In this simplified example the counter is set to the value that was previously saved in the database. In a real-world example this can be targeted ads that are based on the user’s interests.
 
 ![alt text](images/website-fingerprinting-load-behaviour.png)
@@ -191,10 +199,15 @@ In this simplified example the counter is set to the value that was previously s
 ![alt text](images/website-fingerprinting-testing.png)
 
 The overall process for the automated testing relies on the same setup, but is slightly different.
+
 1. Selenium is used to configure and start the browser. The configuration includes browser settings, extensions and incognito mode.
+
 2. The controlled browser requests the fingerprinting website and gets it from the Express webserver
+
 3. Controlled browser displays website
+
 4. JS code is executed and calculates fingerprint
+
 5. Test configuration and fingerprint features are sent to the webserver via a POST request to the `/api/testing` endpoint. The POST body include a JSON with the test configuration and results. The webserver uses Ajv to validate the JSON. Ajv [6] is a JSON schema validator that can be used to implement complex data validation logic in a declarative manner by defining a JSON schema. This ensures that the JSON includes all the required fields and that the data is in the right format. The following excerpt from the JSON schema shows how this looks like for the browser configuration section of the JSON.
 
 ```
@@ -230,6 +243,7 @@ The overall process for the automated testing relies on the same setup, but is s
 ```
 
 6. After the input validation, the webserver parses the received JSON data and saves it in the tests table of the database. 
+
 7. In the last step the data is retrieved from the database and used in the data analysis to produce the results described in 2.4.
 
 ### 2.3 Anti-Fingerprinting measures and client-automation
