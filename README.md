@@ -1,4 +1,4 @@
-# Problem Statement - Browser fingerprinting demonstration
+# Problem Statement - Browser fingerprinting
 
 This is the final repository for the project in 'DD2391 - Cybersecurity Overview' at KTH in P1 2025 of group members Kerem Burak Yilmaz, Manuel Michael Voit and Frederic Jonathan Lorenz (Group 12).
 
@@ -7,40 +7,45 @@ Browser fingerprinting poses a significant privacy risk on the modern web by ena
 
 ## 1 Installation / Use
 
-Clone the project
+Clone the project:
 
 ```bash
   git clone https://github.com/keremburakyilmaz/website-fingerprinting.git
 ```
 
-Go to the project directory
+Go to the project directory:
 
 ```bash
   cd website-fingerprinting
 ```
 
-### 1.1 Fingerprint-collection website including DB 
-Extracts fingerprinting features from user's browser, displays a comprehensive hash (Fingerprint ID) and displays all of this data.
+### 1.1 Browser fingerprinting demonstrator
 
-#### 1.1.1 Local deployment
+The browser fingerprinting demonstrator is composed of a local Express webserver and a SQLite3 database. The webserver hosts a fingerprinting website, that collects and calculates different fingerprinting features of the user's browser and displays them. This setup is used to demonstrate the concept of browser fingerprinting and also for the automated testing of different browsers and configurations. The webserver offers multiple endpoints to save and retrieve data from the database. The database stores fingerprints together with user behaviour for the demonstration or with a test configuration for the analysis.
 
-Install dependencies
-```
-# Prerequisites: Node.js, npm, and SQLite3 must be installed
-npm install
-```
+#### 1.1.1 Direct deployment
 
+The direct deployment requires the host system to have Node.JS and the required node modules, that are specified in the `package.json`, to be installed. Once Node.JS is installed, the node modules can be installed like this:
 ```
+# Prerequisites: Node.JS
 npm ci
+```
+
+The webserver can be started with the following command:
+```
 npm start
 ```
-Website is hosted on: http://localhost:3000
+
+The website is hosted on: http://localhost:3000
 
 #### 1.1.2 Docker deployment
+Alternatively, the demonstrator can be deployed in a Docker container. For the Docker deployment the host systems only needs a working Docker installation and all the Node.JS dependencies are installed in the container. The database is mounted inside the container for persistent data storage.
+
 ```
 docker compose up -d
 ```
-Website is hosted on: http://localhost:80
+
+The website is hosted on: http://localhost:80
 
 ### 1.2 Selenium-automated client
 The Selenium-automated client serves the purpose of making automated calls against the webserver using different browsers and configurations of those.
@@ -74,7 +79,7 @@ Install them under these paths:
 ```
 
 ### 1.2.2 Windows
-For Windows, the following browsers were used for testing: Chrome, Brave, Firefox & TOR.
+For Windows, the following browsers were used for testing: Chrome, Brave, Firefox & Tor.
 Install them (+geckodriver) under these paths:
 
 ```
@@ -86,8 +91,6 @@ Install them (+geckodriver) under these paths:
 ```
 
 ## 2 Project description
-
-Feel free to add more sections
 
 ### 2.1 Fingerprint collection
 
@@ -125,6 +128,8 @@ The webserver implements four different endpoints that are necessary to achieve 
 | POST        | /api/fingerprint | Saves/Updates the user behaviour for a specified fingerprint in the database |
 | POST        | /api/testing     | Saves the configuration and corresponding test results to the database       |
 
+<br>
+
 The SQLite3 database consists of two different tables. The users table saves a user behaviour for a fingerprint. 
 
 ```
@@ -146,6 +151,9 @@ The test configuration includes a timestamp, the name of the used browser and bo
 
 The demonstration of the concept of browser fingerprinting is divided in two different phases. In the first phase the user visits a website, that fingerprints him and associates a certain behaviour/preference with the created fingerprint. In the second phase this fingerprint is used by the same or potentially other websites to adapt the content based on the saved user behaviour/preference. One prominent example of this are targeted ads.
 
+<br>
+<br>
+
 ![alt text](images/website-fingerprinting-demo1.png)
 
 1. User requests the fingerprinting website and gets it from the Express webserver
@@ -161,6 +169,9 @@ In this simplified example the user behaviour/preference is simulated by a butto
 
 5. User data is stored in database together with fingerprint
 The webserver saves/updates the information in the users table of the database.
+
+<br>
+<br>
 
 ![alt text](images/website-fingerprinting-demo2.png)
 
@@ -501,12 +512,14 @@ Finally, I contributed to the written report, by authoring the following section
 
 
 ### 3.2 Manuel Michael Voit
-I was responsible to implement the local webserver and the database. I came up with the idea for the simplified demonstration of fingerprinting and realized it with this setup. I used the fingerprinting website that Kerem created and added the buttons and the logic behind them for the demonstration. For the testing I coordinated the interface with Frederic and implemented it. I created and tested the necessary endpoints of the webserver and the database tables.
+At the start of the project, I looked into how browser fingerprinting works and what use cases there are, both legitimate and malicious. Kerem and I researched what different fingerprinting techniques there are, how they work, how effective they are and what data you can use for fingerprinting.
 
-I also supported Frederic in creating the browser automation script for the testing. I discussed the use of a dockerized environment or VMs with him and fixed problems related to the loading of extensions with Selenium for Chrome and Firefox. I set up a testing environment on Windows for all four browsers Chrome, Brave, Firefox and Tor. In order to do that, I ported the Selenium script that Frederic created for MacOS to work for Windows. Selenium does not support Tor browser automation out of the box. The [tor-browser-selenium](https://github.com/webfp/tor-browser-selenium) GitHub repository offers a way to automate Tor on Linux. [tor-browser-selenium-windows](https://github.com/Mohamed-Emad126/tor-browser-selenium-windows) is a fork of this repository. The files in the folder `./website-calls/tbselenium/` are not ours and originate from the beforementioned repository. This is also mentioned in the README and LICENSE file in the folder. I integrated this code into the testing script to allow us to automate the Tor Browser with Selenium WebDriver on Windows. Furthermore, I translated the BASH script for MacOS that executes all the test into a batch script for Windows and performed the tests on Windows.
+My responsibility was the implementation of the local webserver and the database. I came up with the idea for the simplified demonstration of fingerprinting and realized it with this setup. I used the fingerprinting website that Kerem created and added the buttons and the logic behind them for the demonstration. For the testing I coordinated the interface with Frederic and implemented it. I created and tested the necessary endpoints of the webserver and the database tables.
+
+I also supported Frederic in creating the browser automation script for the testing. I discussed the use of a dockerized environment or VMs with him and fixed problems related to the loading of extensions with Selenium for Chrome and Firefox. I set up a testing environment on Windows for all four browsers: Chrome, Brave, Firefox and Tor. In order to do that, I ported the Selenium script that Frederic created for MacOS to work for Windows. Selenium does not support Tor browser automation out of the box. The [tor-browser-selenium](https://github.com/webfp/tor-browser-selenium) GitHub repository offers a way to automate Tor on Linux. [tor-browser-selenium-windows](https://github.com/Mohamed-Emad126/tor-browser-selenium-windows) is a fork of this repository. The files in the folder `./website-calls/tbselenium/` are not ours and originate from the beforementioned repository. This is also mentioned in the README and LICENSE file in the folder. I integrated this code into the testing script to allow us to automate the Tor Browser with Selenium WebDriver on Windows. Furthermore, I translated the BASH script for MacOS that executes all the test into a batch script for Windows and performed the tests on Windows.
 
 I worked on the following sections of the written report:
-- 1.1 Fingerprint-collection website including DB
+- 1.1 Browser fingerprinting demonstrator
 - 2.2 Local webserver and database
 - 3.2 Individual Contribution
 
@@ -547,6 +560,3 @@ Finally, I contributed to the written report, by authoring the following section
 [10] https://peter.sh/experiments/chromium-command-line-switches/
 
 [11] https://github.com/arkenfox/user.js
-
-
-
