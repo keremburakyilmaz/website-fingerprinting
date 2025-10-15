@@ -104,13 +104,135 @@ We also created a feature we called __"comprehensive fingerprint hash" (CFH)__, 
 
 ### 2.2 Webserver and database
 
+We set up a local webserver and a database for two different reasons:
+1.	Simplified demonstration of how browser fingerprinting works
+2.	Automated testing of different anti-fingerprinting privacy-enhancing technologies (AFPETs) to test their effectiveness
+
+At first the idea was to have a publicly hosted website that the students and other people can visit to view and store their fingerprint for an interactive demonstration of the concept. However, fingerprinting is subject to data protection laws like the General Data Protection Regulation (GDPR) in the EU as it constitutes the processing of personal data. This does not mean, that fingerprinting cannot be used in general. However, it requires the user to actively opt-in and to allow the data processing and there needs to be a legitimate reason for it. [1][2]
+The idea was not pursued any further, in order to avoid any legal uncertainties in hosting the website with a correct privacy policy that the user can opt-in to. Therefore, we ended up with a local deployment of a webserver and database that we can use to process our own data.
+
+#### 2.2.1 Setup
+
+Express [3] is a minimal Node.JS web application framework. Node.js [4] is a cross-platform JavaScript runtime environment, that can be used to execute JS outside of a browser. In this case it is used to run a webserver. The local webserver hosts the website with the fingerprinting implementation that was created in 2.1. The webserver uses a SQLite3 [5] database to store the fingerprinting data. SQLite provides a small SQL database engine and the associated file format is cross-platform. 
+
+There are two different deployment types for the local webserver and database. The direct deployment requires the host system to have Node.JS and the required node modules that are specified in the `package.json` to be installed. Afterwards the webserver can be started with `npm start` on port 3000. For the Docker deployment the host systems only needs a working Docker installation and all the Node.JS dependencies are installed in the container. A `Dockerfile` and `docker-compose.yml` were created to make the deployment as easy as `docker compose up -d`. The database is mounted inside the container for persistent data storage. The website is exposed on port 80.
+
+The webserver implements four different endpoints that are necessary to achieve the two different use cases:
+| HTTP method | Endpoint         | Description                                                                  |
+|-------------|------------------|------------------------------------------------------------------------------|
+| GET         | /                | Default endpoint that returns the fingerprinting website                     |
+| GET         | /api/fingerprint | Returns the user behaviour for a specified fingerprint from the database     |
+| POST        | /api/fingerprint | Saves/Updates the user behaviour for a specified fingerprint in the database |
+| POST        | /api/testing     | Saves the configuration and corresponding test results to the database       |
+
+The SQLite3 database consists of two different tables. The users table saves a user behaviour for a fingerprint. 
+
+```
+users
+  id (PRIMARY KEY), behaviour
+```
+
+The tests table saves a test configuration and the corresponding test results.
+
+```
+tests
+  id (PRIMARY KEY), timestamp, browser, privacy_max, incognito, ublock_origin, privacy_badger, noscript, canvasblocker, comprehensive_fingerprint_hash, other fingerprint features
+```
+
+The test configuration includes a timestamp, the name of the used browser and boolean values indicating if incognito mode, a privacy-enhanced configuration of the browser and certain extensions were used. The test results in the following columns include all the individual fingerprint features from 2.1.
+
+#### 2.2.2 Fingerprinting Demonstration
+---
+![alt text](images/website-fingerprinting-demo.png)
+---
+The demonstration of the concept of browser fingerprinting is divided in two different phases. In the first phase the user visits a website, that fingerprints him and associates a certain behaviour/preference with the created fingerprint. In the second phase this fingerprint is used by the same or potentially other websites to adapt the content based on the saved user behaviour/preference. One prominent example of this are targeted ads.
+
+---
+![alt text](images/website-fingerprinting-demo1.png)
+---
+1. User requests the fingerprinting website and gets it from the Express webserver
+
+2. Client browser displays website
+![alt text](images/ website-fingerprinting-features.png)
+
+3. JS code is executed and calculates fingerprint: In this case the individual values of the fingerprint are displayed on the website and visible to the user. However, this can also happen in the background without the user noticing or consenting to the data processing.
+
+4. Fingerprint and collected user behaviour/preferences are sent to webserver
+![alt text](images/ website-fingerprinting-behaviour.png)
+In this simplified example the user behaviour/preference is simulated by a button with a counter. The user can decide the click the button to increase the counter. If the user clicks the button, the fingerprint and the number of button clicks (behaviour) are sent as a POST request to the `/api/fingerprint` endpoint.
+
+5. User data is stored in database together with fingerprint
+The webserver saves/updates the information in the users table of the database.
+
+---
+![alt text](images/website-fingerprinting-demo2.png)
+---
+The first three steps are identical to what is described above.
+4. Fingerprint is sent to webserver
+This time the request to the webserver with the fingerprint is not triggered by the user. After the fingerprint has been calculated on the client, a request is automatically sent the webserver. This GET request is sent to the `/api/fingerprint` endpoint.
+5. Search for fingerprint in the users table of the database
+6. Saved user behaviour/preference is retrieved from the database
+7. Webserver responds to the client with the information that was retrieved from the database or an adapted version of the website
+8. Website displays information that fits to the user behaviour/reflects his preferences
+In this simplified example the counter is set to the value that was previously saved in the database. In a real-world example this can be targeted ads that are based on the user’s interests.
+---
+![alt text](images/website-fingerprinting-load-behaviour.png)
+---
+
+2.2.2 Automated testing
+---
+![alt text](images/ website-fingerprinting-testing.png)
+---
+
+The overall process for the automated testing relies on the same setup, but is slightly different.
+1. Selenium is used to configure and start the browser. The configuration includes browser settings, extensions and incognito mode.
+2. The controlled browser requests the fingerprinting website and gets it from the Express webserver
+3. Controlled browser displays website
+4. JS code is executed and calculates fingerprint
+5. Test configuration and fingerprint features are sent to the webserver via a POST request to the `/api/testing` endpoint. The POST body include a JSON with the test configuration and results. The webserver uses Ajv to validate the JSON. Ajv [6] is a JSON schema validator that can be used to implement complex data validation logic in a declarative manner by defining a JSON schema. This ensures that the JSON includes all the required fields and that the data is in the right format. The following excerpt from the JSON schema shows how this looks like for the browser configuration section of the JSON.
+
+```
+...
+"config": {
+      "type": "object",
+      "properties": {
+        "browser": {
+          "type": "string"
+        },
+        "privacy_max": {
+          "type": "boolean"
+        },
+        "incognito": {
+          "type": "boolean"
+        },
+        "extensions": {
+          "type": "array",
+          "items":
+            {
+              "type": "string"
+            }
+        }
+      },
+      "required": [
+        "browser",
+        "privacy_max",
+        "incognito",
+        "extensions"
+      ]
+    },
+…
+```
+
+6. After the input validation, the webserver parses the received JSON data and saves it in the tests table of the database. 
+7. In the last step the data is retrieved from the database and used in the data analysis to produce the results described in 2.4.
+
 ### 2.3 Anti-Fingerprinting measures and client-automation
 
 To evaluate the effectiveness of anti-fingerprinting privacy-enhancing technologies (AFPETs), our project implements a varied suite of antifingerprinting measures and automated client testing. By programmatically controlling different browsers with privacy-enhancing settings and extensions, we systematically collect and analyze fingerprinting data under a variety of conditions. This approach enables reproducible, large-scale testing of both standard and hardened browser environments, providing valuable insights into the strengths and limitations of AFPETs analyzed by us.
 
 #### 2.3.1 Research on Severity/Value of fingerprinting features
 
-In order to determine what AFPETs to analyze and use in the scope of this project, it is firstly important to understand what makes a fingerprint feature valuable for a website provider/fingerprint collector. In general, the five following characteristics of a fingerprinting feature are relevant [1]: 
+In order to determine what AFPETs to analyze and use in the scope of this project, it is firstly important to understand what makes a fingerprint feature valuable for a website provider/fingerprint collector. In general, the five following characteristics of a fingerprinting feature are relevant [7]: 
 
 - __Entropy:__ How distinguishable is a new surface/feature from other users? Is it just a boolean value or a 30 bit string that is very unique?
 - __Detectability:__ How easily is a feature observable to the user agent and is it likely to be discoverable by fingerprint collectors?
@@ -125,12 +247,12 @@ On a high-level, AFPETs focus on reducing the effectiveness of browser fingerpri
 
 Hands-On mitigation techniques that can be used by clients can, in general, be classified into the following categories:
 
-- __Blocking[2]:__ Stop websites from accessing a fingerprint feature (canvas access, WebGL, plugins, AudioContext,...) → This can be achieved via browser settings, extensions, or on OS-level. The downside is that this can break thefunctionality of the site
-- __Spoofing / Randomization[2][3]:__ Return false or variable data, so that fingerprint is inconsistent across visits → Can be achieved via extensions or browser features. Caveats: Poorly implemented randomization makes you unique, spoofing can break site contents
-- __Simplifying / Standardization[3]:__ Reduce granularity of reported values so many users look the same (placed into 'buckets' with other users) → Browser choice & settings have effect. Cons: Must be done by browser to be effective at scale
-- __Clearing/Partitioning Local State[1]:__ Remove/Isolate Storage that can be used for re-identification (Cookies, localStorage,...) → Can be achieved in Browser (e.g. Container tabs, Incognito mode,..). Caveat: Does not block JS fingerprinting
+- __Blocking[8]:__ Stop websites from accessing a fingerprint feature (canvas access, WebGL, plugins, AudioContext,...) → This can be achieved via browser settings, extensions, or on OS-level. The downside is that this can break thefunctionality of the site
+- __Spoofing / Randomization[8][9]:__ Return false or variable data, so that fingerprint is inconsistent across visits → Can be achieved via extensions or browser features. Caveats: Poorly implemented randomization makes you unique, spoofing can break site contents
+- __Simplifying / Standardization[9]:__ Reduce granularity of reported values so many users look the same (placed into 'buckets' with other users) → Browser choice & settings have effect. Cons: Must be done by browser to be effective at scale
+- __Clearing/Partitioning Local State[7]:__ Remove/Isolate Storage that can be used for re-identification (Cookies, localStorage,...) → Can be achieved in Browser (e.g. Container tabs, Incognito mode,..). Caveat: Does not block JS fingerprinting
 - __Compartmentalization:__ Separate browsing contexts so tracking can’t follow you across domains (work, social, banking,...) → Use of different browsers or even different VMs/Containers/OS accounts. Cons: User management overhead, does not help if same device attributes leak in all contexts (e.g. same GPU)
-- __Detectability / Permission prompt[1]:__ Make sensitive API calls visible to users (allow/deny), reduce silent collection (e.g. geolocation, camera, microphone,..) → Should be enforced by all modern browsers. Caveat: Many fingerprinting APIs are readable without prompt
+- __Detectability / Permission prompt[7]:__ Make sensitive API calls visible to users (allow/deny), reduce silent collection (e.g. geolocation, camera, microphone,..) → Should be enforced by all modern browsers. Caveat: Many fingerprinting APIs are readable without prompt
 
 The following tests we will focus on the first four categories because they offer practical, user-accessible ways to reduce fingerprinting risk without requiring major changes to browsing habits or infrastructure.
 
@@ -179,7 +301,7 @@ Example: --extension ./extensions/chromium-crx/ublock_origin_lite.crx --extensio
 
 After the arguments have been parsed, they are used to build a functioning driver of the respective browser. This is the point where the Selenium API is used to manipulate browser options/preferences/settings. This process varies slightly depending on the browser type used.
 
-The browser's privacy settings that could be either left at base settings (no argument) or set to a very restrictive set of settings (--privacy-max) deserves more extensive explanation. In those cases, we conducted research [4][5] in order to find a large number of settings that could help reduce fingerprintability (Though the list used does not claim to be exhaustive). Generally it can be noted, that browsers based on the same driver (Chrome &  Brave ↔ Firefox & TOR) generally have the same/very similar settings that can be tweaked. However, privacy-based browser like Brave and TOR in many cases have secure settings preconfigured, making it redundant to set those again manually. For more in-detail explanation of the individual settings, please refer to the inline-comments made in the respective scripts.
+The browser's privacy settings that could be either left at base settings (no argument) or set to a very restrictive set of settings (--privacy-max) deserves more extensive explanation. In those cases, we conducted research [10][11] in order to find a large number of settings that could help reduce fingerprintability (Though the list used does not claim to be exhaustive). Generally it can be noted, that browsers based on the same driver (Chrome &  Brave ↔ Firefox & TOR) generally have the same/very similar settings that can be tweaked. However, privacy-based browser like Brave and TOR in many cases have secure settings preconfigured, making it redundant to set those again manually. For more in-detail explanation of the individual settings, please refer to the inline-comments made in the respective scripts.
 
 To enable automated testing with privacy extensions, we downloaded the relevant extension files (.crx for Chromium-based browsers and .xpi for Firefox-based browsers) from official sources and manually loaded them into the browsers via Selenium’s extension loading functionality. While it is important to note that the presence of certain extensions can itself serve as a fingerprinting vector, potentially reducing privacy, especially in browsers like Tor where NoScript is already built-in, we chose to include them in our tests to systematically evaluate their impact on fingerprinting surfaces. This allows us to compare both extension-free and extension-enabled scenarios across all browsers, even if using extensions is not always recommended for maximum anonymity.
 
@@ -364,7 +486,7 @@ __Interpretation:__
 - Tor disables audio fingerprinting completely, adding %150 extra uniqueness and +0.8 privacy points.
 
 ---
-![alt text](uniqueness-privacy-tradeoff.png)
+![alt text](images/uniqueness-privacy-tradeoff.png)
 ---
 
 ### 2.5 (uniqueness analysis?)
@@ -384,6 +506,15 @@ Finally, I contributed to the written report, by authoring the following section
 
 
 ### 3.2 Manuel Michael Voit
+I was responsible to implement the local webserver and the database. I came up with the idea for the simplified demonstration of fingerprinting and realized it with this setup. I used the fingerprinting website that Kerem created and added the buttons and the logic behind them for the demonstration. For the testing I coordinated the interface with Frederic and implemented it. I created and tested the necessary endpoints of the webserver and the database tables.
+
+I also supported Frederic in creating the browser automation script for the testing. I discussed the use of a dockerized environment or VMs with him and fixed problems related to the loading of extensions with Selenium for Chrome and Firefox. I set up a testing environment on Windows for all four browsers Chrome, Brave, Firefox and Tor. In order to do that, I ported the Selenium script that Frederic created for MacOS to work for Windows. Selenium does not support Tor browser automation out of the box. The [tor-browser-selenium](https://github.com/webfp/tor-browser-selenium) GitHub repository offers a way to automate Tor on Linux. [tor-browser-selenium-windows](https://github.com/Mohamed-Emad126/tor-browser-selenium-windows) is a fork of this repository. The files in the folder `./website-calls/tbselenium/` are not ours and originate from the beforementioned repository. This is also mentioned in the README and LICENSE file in the folder. I integrated this code into the testing script to allow us to automate the Tor Browser with Selenium WebDriver on Windows. Furthermore, I translated the BASH script for MacOS that executes all the test into a batch script for Windows and performed the tests on Windows.
+
+I worked on the following sections of the written report:
+- 1.1 Fingerprint-collection website including DB
+- 2.2 Local webserver and database
+- 3.2 Individual Contribution
+
 
 ### 3.3 Frederic Jonathan Lorenz 
 During the project, my individual contributions focused on both research and technical implementation aspects of anti-fingerprinting measures. I began by investigating the severity of various fingerprinting features (2.3.1), identifying which browser and system attributes are most valuable to fingerprint collectors and therefore most critical to protect. This research was used as foundation for a review of existing mitigation techniques, evaluating their effectiveness and practicality for real-world use (2.3.2). Based on these findings, I developed a concrete test plan that balanced thoroughness with feasibility (keeping the generated data in manageable quantities). This was done by selecting a representative subset of browsers (Chrome, Firefox, Brave, and Tor), privacy extensions, browser settings, and the use of incognito mode to systematically analyze their impact on fingerprint uniqueness and privacy. (2.3.3)
@@ -400,15 +531,27 @@ Finally, I contributed to the written report, by authoring the following section
 
 
 ## 4 References
-[1] https://www.w3.org/TR/fingerprinting-guidance/
+[1] https://www.eff.org/deeplinks/2018/06/gdpr-and-browser-fingerprinting-how-it-changes-game-sneakiest-web-trackers
 
-[2] https://jscholarship.library.jhu.edu/server/api/core/bitstreams/22de9dbc-ebe5-4a45-ae00-25833b6ad227/content
+[2] https://ico.org.uk/about-the-ico/media-centre/news-and-blogs/2024/12/our-response-to-google-s-policy-change-on-fingerprinting/
 
-[3] https://tb-manual.torproject.org/anti-fingerprinting/?utm_source=chatgpt.com
+[3] https://expressjs.com/
 
-[4] https://peter.sh/experiments/chromium-command-line-switches/
+[4] https://nodejs.org/en/
 
-[5] https://github.com/arkenfox/user.js
+[5] https://sqlite.org/
+
+[6] https://ajv.js.org/
+
+[7] https://www.w3.org/TR/fingerprinting-guidance/
+
+[8] https://jscholarship.library.jhu.edu/server/api/core/bitstreams/22de9dbc-ebe5-4a45-ae00-25833b6ad227/content
+
+[9] https://tb-manual.torproject.org/anti-fingerprinting/?utm_source=chatgpt.com
+
+[10] https://peter.sh/experiments/chromium-command-line-switches/
+
+[11] https://github.com/arkenfox/user.js
 
 
 
