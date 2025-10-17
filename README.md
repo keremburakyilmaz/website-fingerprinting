@@ -677,6 +677,26 @@ To enable automated testing with privacy extensions, we downloaded the relevant 
 
 Once the driver for making the website-call has been successfully created, our fingerprinting website is being called on localhost. We include a unique cache-busting query parameter in the request in order to avoid any browser to load a cached version of the website. This ensures we always get a fresh copy of the data from the server.
 
+An example of an automated call using the script with these parameters
+
+```
+python3 show_fp_MacOS.py --browser chrome --url http://localhost:80 --extension ./extensions/chromium-crx/ublock_origin_lite.crx --extension ./extensions/chromium-crx/privacy-badger-chrome.crx
+```
+can be seen in the following image. Once the script is called, a windows of the respective browser opens. As we can see in the address bar localhost, followed by the cache busting query parameter is being called. Also, a look into the Extensions Tab in the browser reveals, that the extensions we selected in our script arguments have been loaded successfully. If we had executed the script using incognito mode, the browser would have displayed such window. Finally, it is to be noted, that the browser (in this case chrome) displays a quick note saying that it is being controlled by an automated test SW.
+
+![alt text](images/Browser_Automation_Demo.png)
+
+The used configuration of the script is also displayed on the CLI, if successful:
+
+```
+[config] Browser: chrome
+[config] Privacy-max: False
+[config] Incognito/private: False
+[config] Extensions: ['./extensions/chromium-crx/ublock_origin_lite.crx', './extensions/chromium-crx/privacy-badger-chrome.crx']
+[info] Launching chrome ...
+[info] Navigating to http://localhost:80?nocache=1760719572789_64382 ...
+```
+
 The fingerprinting data is displayed on the website. In order to fetch and parse this data, the HTML is searched and stripped of whitespaces. Afterwards, the found values are fed into a python dictionary, where the name of the fingerprinting value represents the key, and its content is stored as the value. Next, this dictionary containing the fingerprinting data of the respective browser configuration is used to create a JSON of the following structure:
 
 ```
@@ -696,6 +716,13 @@ combined_output = {
 As can be seen above, the JSON includes all data that is relevant to the individual request made - including the used configuration as well as the output of the webserver. This is necessary so that for later analysis, all setting-output combinations are traceable and stored uniformly.
 
 In the next and final step, this uniform JSON file is passed to the `/api/testing` endpoint of our fingerprinting server using a POST request. This triggers the server to store the passed data in its databse. From this aggregated dataset, a comprehensive analysis of all different browsers (+ settings, extensions, incognito modes) and their respective fingerprinting surface can be conducted.
+
+If the transmission to the server API has been successful, the API should output the following:
+
+```
+POST /api/testing status: 200
+Response: {"success":true,"message":"Test results saved correctly!"}
+```
 
 ##### 2.3.4.3 Automated testing procedure using bash script
 
