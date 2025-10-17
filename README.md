@@ -96,14 +96,364 @@ Install them (+geckodriver) under these paths:
 
 We used multiple methods to collect the fingerprints of the user. We tried to both include high entropy features (more unique and stable) and low entropy features (less unique and unstable) in order to make our analysis fair. 
 
-| Layer              | Feature                                                                       | Main signal type                         | Typical entropy / stability         | Privacy implication                          |
+In this context, __entropy__ refers to the amount of identifying information that a feature contributes to the fingerprint:
+
+- High-entropy features are features that change significantly among users or devices and remain stable over time and sessions. They provide strong uniqueness, for example, Canvas or WebGL rendering outputs depend on the exact GPU, drivers, and hardware, making them highly identifying since they are not easily changeable for users.
+- Medium-entropy features show some diversity among systems but can overlap between many users. They often depend on regional, system, or configuration settings (like screen size, timezone). These add differentiation but not strong uniqueness.
+- Low-entropy features are easily changeable or common among many users. They might vary session to session or depend on user behavior or browser state. They add little to identification but help provide environmental context.
+
+We classify features into these categories based on their uniqueness (how many users share the same value) and stability (how often the value changes over time or sessions). A feature that is both unique and stable is considered high entropy and one that is common or volatile is low entropy.
+
+| Layer              | Feature                                                                              | Main signal type                         | Typical entropy / stability         | Privacy implication                          |
 | ------------------ | ------------------------------------------------------------------------------------ | ---------------------------------------- | ----------------------------------- | -------------------------------------------- |
-| **High entropy**   | Canvas, WebGL, Audio, Fonts                                                          | Hardware- and driver-dependent rendering | Very unique; stable across sessions | Great for re-identification, bad for privacy |
-| **Medium entropy** | Screen, DPR, color depth, timezone, locale, CPU, RAM, platform, mediaDevices, WebRTC | System configuration and network hints   | Moderately unique, semi-stable      | Adds small differentiating bits              |
+| **High entropy**   | Canvas, WebGL, Audio, Fonts                                                          | Hardware- and driver-dependent rendering | Very unique, stable across sessions | Great for re-identification, bad for privacy |
+| **Medium entropy** | Screen, DPR, color depth, timezone, locale, CPU, RAM, platform, mediaDevices, WebRTC | System configuration and network hints   | Moderately unique, semi-stable      | Adds small differentiation                   |
 | **Low entropy**    | Cookies, language, DNT, plugins, behaviour samples, orientation, motion, WASM        | Environment + user behaviour             | Low uniqueness, high volatility     | Mostly contextual noise                      |
 
+#### 2.1.1 High Entropy
+
+##### 2.1.1.1 Canvas Fingerprinting[12]:
+
+```javascript
+await (async function canvasFP() {
+    try {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    ctx.font = "16px Arial";
+    ctx.fillText("Canvas FP Test 😃 測試", 10, 20);
+    const hash = await sha256Hex(ctx.getImageData(0, 0, 200, 50).data.buffer);
+    addFeature("Canvas Fingerprint", hash);
+    } catch {
+    addFeature("Canvas Fingerprint", "Blocked");
+    }
+})();
+```
+- Canvas fingerprinting uses device-specific differences in how browsers render graphics and text to extract a stable identifier without relying on cookies. As described by Fingerprint’s blog [12], the technique uses the HTML5 <canvas> to draw text or shapes, often including complex characters like emojis or multilingual glyphs and then reads back the raw pixel or image data.
+
+- Because rendering depends on the combination of GPU, graphics drivers, operating system, installed fonts, browser version, and other environmental factors, small variations appear in the output. These variations are hashed into a fingerprint string. 
+
+##### 2.1.1.2 WebGL fingerprint[13]:
+
+```javascript
+(function webglFP() {
+    try {
+      const gl = document.createElement("canvas").getContext("webgl");
+      if (!gl) return addFeature("WebGL", "Not supported");
+      const ext = gl.getExtension("WEBGL_debug_renderer_info");
+      const vendor = ext ? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) : "N/A";
+      const renderer = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : "N/A";
+      addFeature("WebGL Vendor", vendor);
+      addFeature("WebGL Renderer", renderer);
+      addFeature("WebGL Shader Precision", gl.getShaderPrecisionFormat(gl.VERTEX_SHADER, gl.HIGH_FLOAT));
+    } catch {
+      addFeature("WebGL", "Blocked");
+    }
+})();
+```
+
+- This code snippet uses WebGL to extract device-specific attributes by creating a 3D rendering context and querying low-level graphics parameters. It attempts to retrieve unmasked vendor and renderer strings (via the WEBGL_debug_renderer_info extension), which reflect the GPU model and driver, and also examines shader precision formats, which may subtly differ across devices. According to the Browserscan article [13], these values encode small but measurable variations in hardware and driver implementations (GPU quirks, rounding, pipeline optimizations) that are difficult to mask. 
+
+- Because WebGL operates deeper in the graphics stack than basic canvas, it tends to offer higher discrimination power. Two systems that look similar at the 2D rendering level may diverge more when executing 3D and shader tasks. 
+
+- Unlike canvas fingerprinting, which focuses on 2D drawing distortions, WebGL fingerprinting uses the 3D pipeline, making it harder for typical browser defenses to fully neutralize without disabling advanced graphics capabilities like hardware acceleration in browsers.
+
+##### 2.1.1.3 Audio fingerprint[12]:
+
+```javascript
+    (async function audioFP() {
+        try {
+        const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+        if (!OfflineCtx) return addFeature("Audio Fingerprint", "Not supported");
+        const ctx = new OfflineCtx(1, 44100, 44100);
+        const osc = ctx.createOscillator();
+        osc.connect(ctx.destination);
+        osc.start();
+        ctx.startRendering();
+        const rendered = await new Promise(res => ctx.oncomplete = e => res(e.renderedBuffer));
+        const hash = await sha256Hex(rendered.getChannelData(0).buffer);
+        addFeature("Audio Fingerprint", hash);
+        } catch {
+        addFeature("Audio Fingerprint", "Blocked");
+        }
+    })();
+```
+
+- This audio-based fingerprinting snippet uses the Web Audio API in an offline (non-real-time) context to generate a tone and capture the resulting waveform. It creates an oscillator node, connects it to the audio context, renders it, and then hashes the raw sample data. By analyzing the subtle differences in the returned audio buffer, we can distinguish devices based on how their audio processing pipeline (digital-to-analog converters, audio drivers, signal path, floating-point math, resampling, filters) distort or transform the signal. 
+
+- As Fingerprint's blog [12] explains, even though the same oscillator and audio settings are used, minor changes arise due to device and driver specifics - resulting in a unique “audio fingerprint.” 
+
+##### 2.1.1.4 Font Enumeratiom[14]:
+
+```javascript
+    (function fontProbe() {
+        const baseFonts = ["monospace","serif","sans-serif"];
+        const fontsToTest = ["Arial","Times New Roman","Courier New","Roboto","Comic Sans MS"];
+        function measure(font) {
+        const span = document.createElement("span");
+        span.style.font = "16px " + font;
+        span.textContent = "mmmmmmmmmlliI";
+        document.body.appendChild(span);
+        const w = span.getBoundingClientRect().width;
+        document.body.removeChild(span);
+        return w;
+        }
+        const baseline = {}; baseFonts.forEach(f => baseline[f] = measure(f));
+        const detected = [];
+        fontsToTest.forEach(f => {
+        const w = measure(f + "," + baseFonts.join(","));
+        if (!baseFonts.some(b => Math.abs(w - baseline[b]) < 0.1)) detected.push(f);
+        });
+        addFeature("Detected Fonts", detected);
+    })();
+```
+
+- Font enumeration is a fingerprinting method that infers which fonts are installed on a user’s system by measuring how a browser lays out text using different candidate fonts. In the snippet above, the script picks a set of base fonts (such as “monospace”, “serif”, “sans-serif”) and a list of fonts to test (e.g. “Arial”, “Times New Roman”, “Roboto”). It measures the rendered width of a fixed string (e.g. “mmmmmmmmmlliI”) when using each base font, and then when “fallback” combinations are used (e.g. "TestFont, baseFonts..."). If the measured width deviates enough from any of the base widths, the script deduces that TestFont is present on the system. 
+
+- According to the AdsPower guide [14], because different users have widely varying sets of installed fonts (especially custom or application-specific fonts), font fingerprinting can contribute high discriminative power to a browser fingerprint. 
+
+##### 2.1.1.5 User Agent[12]:
+
+```javascript
+    addFeature("User-Agent", navigator.userAgent);
+```
+
+- The User-Agent string reveals information about the browser, operating system, rendering engine, and sometimes the device model.
+
+#### 2.1.2 Medium Entropy
+
+##### 2.1.2.1 Screen / display properties[12]:
+
+```javascript
+    addFeature("Screen Resolution", screen.width + " x " + screen.height);
+    addFeature("Device Pixel Ratio", window.devicePixelRatio);
+    addFeature("Color Depth", screen.colorDepth);
+```
+
+- Screen resolution, device pixel ratio (DPR), and color depth reveal details about the user’s display setup and graphics configuration. 
+
+- These parameters help estimate the type of device (phone, laptop, 4K monitor) and sometimes even distinguish between hardware models. 
+
+- While not unique by themselves, they can help with cross-device differentiation, especially when combined with other factors.
+
+##### 2.1.2.2 Time zone & locale[12]:
+
+```javascript
+    addFeature("Time Zone", Intl.DateTimeFormat().resolvedOptions().timeZone);
+    addFeature("Locale", Intl.NumberFormat().resolvedOptions().locale);
+```
+
+- The user’s time zone and locale settings provide geographical and regional indicators based on operating system or browser preferences.
+
+##### 2.1.2.3 Platform, CPU, RAM[15]:
+
+```javascript
+    addFeature("Platform", navigator.platform);
+    addFeature("CPU Cores", navigator.hardwareConcurrency || "N/A");
+    addFeature("Device Memory (GB)", navigator.deviceMemory || "N/A");
+```
+- System-level parameters like platform, CPU core count, and device memory expose aspects of a user’s hardware. These reflect device performance characteristics (distinguishing a smartphone from a workstation).
+
+##### 2.1.2.4 Multi-monitor Info:
+
+```javascript
+    addFeature("Multi-Monitor Position", `availLeft=${screen.availLeft || 0}, availTop=${screen.availTop || 0}`);
+```
+
+- By querying the screen’s available coordinates (availLeft, availTop), the script can detect whether the system uses multiple displays or non-standard screen arrangements.
+
+##### 2.1.2.5 Media devices (mics, cams, speakers)[12]:
+
+```javascript
+    (async function mediaDevices() {
+        try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        addFeature("Media Devices", devices.map(d => `${d.kind}: ${d.label || "hidden"}`));
+        } catch {
+        addFeature("Media Devices", "Blocked or denied");
+        }
+    })();
+```
+
+- Enumerating media devices through the navigator.mediaDevices reveals the types and counts of connected peripherals such as microphones, webcams, and audio outputs. 
+
+- While device labels are usually hidden for privacy, the metadata (device kinds and counts) still provide useful system fingerprints.
+
+##### 2.1.2.6 WebRTC IP discovery (may expose local/public IPs if not blocked)[15]:
+
+```javascript
+    (function webrtcIPs() {
+        try {
+        const pc = new RTCPeerConnection();
+        pc.createDataChannel("");
+        pc.onicecandidate = e => {
+            if (e.candidate) addFeature("WebRTC Candidate", e.candidate.candidate);
+        };
+        pc.createOffer().then(o => pc.setLocalDescription(o));
+        setTimeout(() => pc.close(), 1500);
+        } catch {
+        addFeature("WebRTC", "Blocked");
+        }
+    })();
+```
+
+- This code snippet uses the WebRTC to generate ICE (Interactive Connectivity Establishment) candidates, which may reveal internal or external IP addresses and network interface details to the script. 
+
+- By creating an RTCPeerConnection, opening a dummy data channel, and inspecting onicecandidate events, the script captures the candidate strings that often include IP addresses, port numbers, and network types. 
+
+- According to geelak's blog [15], this approach can bypass proxies or VPNs if not properly configured, exposing the machine’s real identifiers even in protected sessions.  
+
+- In the fingerprinting context, the set of discovered ICE candidates and their structure or ordering can act as a medium‐entropy signal, contributing additional differentiation between users with different network topologies or interface setups.
+
+#### 2.1.3 Low Entropy
+
+##### 2.1.3.1 Cookies Enabled:
+
+```javascript
+    addFeature("Cookies Enabled", navigator.cookieEnabled);
+```
+
+- The user’s cookie settings provide a difference that can be combined with other features.
+
+##### 2.1.3.2 Language:
+
+```javascript
+    addFeature("Accept-Language", navigator.language);
+```
+
+- The user’s language settings provide geographical and regional indicators.
+
+##### 2.1.3.3 Do not Track:
+
+```javascript
+    addFeature("Do Not Track", navigator.doNotTrack || "N/A");
+```
+
+- The user’s do not track settings provide a difference that can be combined with other features.
+
+##### 2.1.3.4 Plugins[12]:
+
+```javascript
+    try {
+        const plugins = Array.from(navigator.plugins || []).map(p => p.name);
+        addFeature("Plugins", plugins.length ? plugins : "None");
+    } catch {
+        addFeature("Plugins", "Blocked");
+    }
+```
+
+- The user’s plugins provide a difference that can be combined with other features.
+
+##### 2.1.3.5 Behavioral samples: mouse, key, scroll, touch[16]:
+
+```javascript
+    (function behavior() {
+        const mouse = [], keys = [], scrolls = [];
+        window.addEventListener("mousemove", e => { if (mouse.length<3) mouse.push([e.clientX,e.clientY]); });
+        window.addEventListener("keydown", e => { if (keys.length<3) keys.push(e.key); });
+        window.addEventListener("scroll", e => { if (scrolls.length<3) scrolls.push([scrollX,scrollY]); });
+        setTimeout(() => {
+        addFeature("Mouse Sample", mouse);
+        addFeature("Key Press Sample", keys);
+        addFeature("Scroll Sample", scrolls);
+        }, 4000);
+    })();
+
+    const touches = [];
+    window.addEventListener("touchstart", e => touches.push("start " + e.touches.length));
+    window.addEventListener("touchend", e => touches.push("end"));
+    setTimeout(() => addFeature("Touch Gestures Sample", touches), 4000);
+```
+
+- This code snippet passively collects a few raw samples of user behavior, mouse movement, key presses, scroll positions and touch gestures, over a brief time window (4 seconds). 
+
+- Coronium’s fingerprinting overview emphasizes that behavioral analysis is an advanced vector: instead of just static device data (like screen size or fonts), tracking scripts increasingly look at how users interact with the page (mouse trajectories, typing rhythms, scroll patterns) to distinguish humans from bots or fake clients.
+
+- Behavioral signals are inherently dynamic and low-entropy on their own, but when combined with all the static features they raise the cost of impersonation. Because real human interactions tend to contain subtle, unpredictable noise and irregularities, collecting even a small sample can help fingerprinters verify “humanness” or detect anomalies in scripted behavior. 
+
+##### 2.1.3.7 Orientation & motion sensors (mobile devices)[17]:
+
+```javascript
+    window.addEventListener("deviceorientation", e => {
+        addFeature("Device Orientation", {alpha:e.alpha,beta:e.beta,gamma:e.gamma});
+    }, {once:true});
+
+    window.addEventListener("devicemotion", e => {
+        addFeature("Device Motion", {
+        acc: e.acceleration,
+        accG: e.accelerationIncludingGravity,
+        rot: e.rotationRate
+        });
+    }, {once:true});
+```
+
+- This code snippet listens for a single deviceorientation and devicemotion event to capture the device’s orientation (angles α, β, γ) and motion metrics (linear acceleration, acceleration including gravity, rotation rates). On mobile devices, these sensor readings are drawn from accelerometers, gyroscopes, and magnetometers, giving physical motion and orientation data relative to Earth’s frame. As the web.dev article explains, these events expose how a device is tilted, rotated, or accelerated, and they rely on the device’s internal sensors. 
+
+- In the fingerprinting context, minor manufacturing imperfections or calibration differences cause slight but repeatable deviations in sensor response, for instance small biases or noise characteristics unique to each sensor. 
+
+##### 2.1.3.8 WASM Performance microbenchmark[18]:
+
+```javascript
+    (async function wasmPerf() {
+        try {
+        const start = performance.now();
+        const mod = await WebAssembly.compile(new Uint8Array([0,97,115,109,1,0,0,0]));
+        await WebAssembly.instantiate(mod);
+        addFeature("WASM Compile Time (ms)", (performance.now()-start).toFixed(2));
+        } catch {
+        addFeature("WASM Perf", "Not supported");
+        }
+    })();
+```
+
+- This code snippet measures the time to compile a minimal WebAssembly (Wasm) module, using that latency as a fingerprinting signal. By timing how long it takes (in milliseconds) to compile a trivial Wasm binary, small differences in the browser’s WebAssembly engine, CPU architecture, JIT compilation heuristics, memory system, and runtime environment can be exposed. 
+
+- Because WebAssembly execution lies closer to the hardware layer than JavaScript, its performance behavior tends to carry more discriminating information.
+
+---
 
 We also created a feature we called __"comprehensive fingerprint hash" (CFH)__, which was basically all the features concatenated together and hashed, in order to distinguish between configurations easier. However, the features WebRTC Candidate, WASM Compile Time (ms), Mouse Sample and Scroll Sample were removed from this since they were extremely unstable and caused our comprehensive hash to be different in each configuration.
+
+```javascript
+    setTimeout(async () => {
+        try {
+            const allFeatures = {};
+            const featureList = document.getElementById('featureList');
+            const features = featureList.querySelectorAll('li');
+            
+            // Parameters to exclude from comprehensive hash
+            const excludedParams = [
+                'WebRTC Candidate',
+                'WASM Compile Time (ms)',
+                'Mouse Sample',
+                'Scroll Sample'
+            ];
+            
+            features.forEach(li => {
+                const title = li.querySelector('h3').textContent;
+                const value = li.querySelector('pre').textContent;
+                
+                // Only include features that are not in the excluded list
+                if (!excludedParams.includes(title)) {
+                    allFeatures[title] = value;
+                }
+            });
+            
+            // Create a comprehensive fingerprint string
+            const fingerprintString = JSON.stringify(allFeatures, Object.keys(allFeatures).sort());
+            const comprehensiveHash = await sha256Hex(fingerprintString);
+            addFeature("Comprehensive Fingerprint Hash", comprehensiveHash);
+            
+            // Update the hash display in the header
+            const hashValueElement = document.getElementById('hashValue');
+            if (hashValueElement) {
+                hashValueElement.textContent = comprehensiveHash;
+                hashValueElement.style.color = '#4CAF50'; // Green color to indicate success
+            }
+        } catch (error) {
+            addFeature("Comprehensive Fingerprint Hash", "Error generating hash");
+        }
+    }, 6000); // Wait for all other features to be collected
+```
 
 ### 2.2 Webserver and database
 
@@ -357,7 +707,11 @@ Despite this available automation, it was decided to restrict the amount of diff
 
 We created a metric called __privacy score__, which showcases the amount of settings and extension enabled to increase privacy:
 
-Privacy Score = (Incognito + uBlock + Badger + NoScript + CanvasBlocker)
+Privacy Score = (Incognito + uBlock + Badger + NoScript + CanvasBlocker + PrivacyMax)
+
+---
+__Note:__ PrivacyMax is where we try to enable every native settings of the browser to increase the privacy, and not a separate extension.
+---
 
 We used a binary system to show if the setting is open or not. 
 
@@ -366,17 +720,17 @@ An example would be:
 | Feature                    | Chrome  | Tor |
 | -------------------------- | ------- | --- |
 | Incognito                  | 0       | 1   |
-| Do Not Track               | 0       | 1   |
+| Privacy Max                | 0       | 1   |
 | uBlock Origin              | 0       | 1   |
 | Privacy Badger             | 0       | 1   |
 | NoScript                   | 0       | 1   |
 | CanvasBlocker              | 0       | 1   |
 
 __Interpretation:__
-- Higher privacy score = higher protection but also more “drift” (different hash each session).
-- Lower privacy score = stable but trackable.
-- We found a correlation of −0.74 between privacy score and fingerprint uniqueness. It means that the more private your setup, the less predictable and less reusable its fingerprint.
-- However, in some features, we saw that uniqueness increase alongside the privacy. This is what we called, __privacy-uniqueness paradox__, where features improves policy-level privacy but worsens statistical-level anonymity, which we will talk about more later on.
+- Higher privacy score = higher effort towards protection 
+- Lower privacy score = lower effort towards protection
+- We found a correlation of 0.74 between privacy score and fingerprint uniqueness. It means that the more private your setup, the less predictable and less reusable its fingerprint.
+- However, in some features, we observed that uniqueness actually decreases as privacy increases. We refer to this as the __privacy-uniqueness paradox__, where certain measures increase policy-level privacy but reduce statistical anonymity.
 
 We also created another metric called __unique CFH rate__ to evaluate how stable each browser configuration was. This value measures the uniqueness rate of fingerprints in every configuration. For example for this mock configuration:
 
@@ -392,21 +746,22 @@ Unique CFH rate would be 2 (total number of unique CFH's) / 3 + 1 + 1 + 2 (total
 We isolated every variable and ran this test through each configuration of that set variable to find this metric.
 
 __Interpretation:__
-- 1.0 unique CFH rate means that every run creates a different hash, meaning that it is unstable and cannot be used to track the user. As unique CFH rate comes closer to 1, it means that it is closer to being secure and private.
-- 0.0 unique CFH rate means that every run creates the same hash, meaning that it is stable and persistent, which can be used to track the user. As unique CFH rate comes closer to 0, it means that it is closer to being less secure and private.
+- 1.0 unique CFH rate means that every run creates a different hash, meaning that it is unstable and cannot be used to track the user.
+- 0.0 unique CFH rate means that every run creates the same hash, meaning that it is stable and persistent, which can be used to track the user.
 
 #### 2.4.1 Cross Browser Comparison
+| Browser     | Unique CFH Rate | **Avg. Privacy Score** | Δ Uniqueness vs Chrome | Δ Privacy vs Chrome | Interpretation |
+| ----------- | --------------- | ---------------------- | ---------------------- | ------------------- | ----------------------------------------------------------------- |
+| **Chrome**  | 0.00            | **2.50**               | –                      | –                   | Fully deterministic: every run identical.|
+| **Brave**   | 0.75            | **2.50**               | +0.75                  | 0.00                | High uniqueness from Canvas/Audio randomization, privacy score same as Chrome due to similar configuration mix. |
+| **Firefox** | 0.38            | **3.00**               | +0.38                  | +0.50               | Partial blocking and CanvasBlocker produce moderate entropy and slightly higher privacy.|
+| **Tor**     | 1.00            | **3.50**               | +1.00                  | +1.00               | Every fingerprint unique = perfect session isolation, highest overall privacy.|
 
-| Browser     | Unique CFH rate | Avg. Privacy Score | Uniqueness vs Chrome | Privacy vs Chrome | Interpretation  |
-| ----------- | --------------- | ------------------ | ---------------------| ----------------- | --------------- |
-| **Chrome**  | 0.00            | 2.25               | -                    | -                 | Fully deterministic: every run identical.|
-| **Brave**   | 0.75            | 2.25               | +0.75                | 0.00              | 75 % higher uniqueness due to randomized Canvas/Audio. Privacy score same, meaning Brave’s *built-in* defenses don’t all register in your simple Boolean score.|
-| **Firefox** | 0.38            | 2.75               | +0.38                | +0.50             | Partial blocking adds moderate entropy and small privacy gain.|
-| **Tor**     | 1.00            | 3.00               | +1.00                | +0.75             | Every fingerprint hash unique = perfect session isolation, highest privacy.|
 
 __Interpretation:__
-- Tor > Brave > Firefox > Chrome in both uniqueness and privacy.
-- The magnitude of difference is large: Tor’s CFH variability is 2.6× higher than Brave’s (1.00 / 0.38) and infinite relative to Chrome’s 0.00 baseline.
+- Tor stands out as the most privacy-preserving browser, achieving both the highest average privacy score (3.5) and the maximum unique CFH rate (1.0), indicating complete session isolation.
+- Firefox follows with a moderate uniqueness level (0.38) and slightly lower privacy score (3.0), reflecting the effect of its extensive extension support and anti-fingerprinting options. The reason uniqueness rate dropped is because Firefox is going for privacy through anonymity and not session isolation.
+- Brave reaches a high uniqueness rate (0.75) due to its built-in randomization of Canvas and Audio features, but its average privacy score matches Chrome’s (2.5), since both were tested across configurations with and without extensions. 
 
 #### 2.4.2 Effects of Incognito Mode
 
@@ -453,10 +808,41 @@ We noticed that we have 4 different combinations of extension configuration:
 |      1 |      1 |        1 |             1 |       0.625     |           4.75     |   16 | 
 
 __Interpretation:__
-- Chromium browsers like Chrome or Brave not supporting CanvasBlocker is a huge difference. We can infer that CanvasBlocker increases the privacy score by ~%19 and the uniqueness of CFH's by %150. So by simply using Firefox, users can protect themselves much more.
-- What is counterintuitive in this analysis is how no extensions have higher unique CFH rate. It is also an example of privacy-uniqueness paradox. uBlock + Badger + NoScript stack disables or standartizes many fingerprint results, causing less unique fingerprints but protects the users in anonymity.
+- Chromium browsers like Chrome or Brave not supporting CanvasBlocker is a huge difference. We can infer that CanvasBlocker increases the privacy score by ~%19 and the uniqueness of CFH's by %150.
+- What is counterintuitive in this analysis is how no extensions have higher unique CFH rate than having uBlock + Badger + NoScript. It is also an example of privacy-uniqueness paradox. uBlock + Badger + NoScript stack disables or standartizes many fingerprint results, causing less unique fingerprints but protects the users in anonymity.
 - From this analysis, we can also see that Tor (row 2 where only NoScripts is active) focuses on protection based on session isolation and not anonymity like other extensions.
 - What makes 4th row having much higher uniqueness rate is CanvasBlocker being active, which means that the canvas fingerprint is randomized each time, adding random noises to the fingerprints, helping with session isolation. 
+
+#### 2.4.5 Built-in Privacy Settings
+
+| Privacy Max | Unique CFH Rate | Avg. Privacy Score | Change vs. Base               |
+| ----------- | --------------: | -----------------: | ----------------------------- |
+| **Off (0)** | 0.56            | 2.38               | -                             |
+| **On (1)**  | 0.69            | 3.38               | +0.13 unique, +1.0 privacy    |
+
+__Interpretation:__
+- Default configurations show moderate fingerprint stability (over half of runs produced the same hash).
+- Enabling privacy-max settings raises privacy score by +1.0 and increases fingerprint variability by ~23%, indicating greater session isolation.
+
+However, during deeper analysis, we made an interesting discovery:
+
+| Browser     | Privacy Max | Avg. Privacy Score | Unique CFH Rate | Change vs. Base |
+| ----------- | ----------- | -----------------: | --------------: |--------------: |
+| **Chrome**  | 0           |                2.0 |            0.25 | - |
+| **Chrome**  | 1           |                3.0 |            0.25 | +1.0 privacy score, +0.0 uniqueness |
+| **Brave**   | 0           |                2.0 |            0.88 | - |
+| **Brave**   | 1           |                3.0 |            0.88 | +1.0 privacy score, +0.0 uniqueness |
+| **Firefox** | 0           |                2.5 |            0.38 | - |
+| **Firefox** | 1           |                3.5 |            0.88 | +1.0 privacy score, +0.50 uniqueness |
+| **Tor**     | 0           |                3.0 |            1.00 | - |
+| **Tor**     | 1           |                4.0 |            1.00 | +1.0 privacy score, +0.0 uniqueness |
+
+__Interpretation:__
+- We found out that the uniqueness increase was not homogenous, it was rather coming only from Firefox.
+- For Chrome, enabling privacy-max settings raises privacy score but does not affect fingerprint variability.
+- For Brave, we can infer that settings do not add much, or that they are turned on by default and we have no affect on it.
+- For Firefox, privacy-max mode and stricter fingerprinting resistance nearly double uniqueness, showing strong session isolation.
+- For Tor, we can infer that it already enforces full isolation and anti-fingerprinting by default.
 
 ---
 
@@ -464,61 +850,84 @@ __Note: Next analysises will be done by inferring the fingerprints we collected 
 
 ---
 
-#### 2.4.5 Effect of WebGL Blocking / Spoofing
+#### 2.4.6 Effect of WebGL Blocking / Spoofing
 
-| WebGL Status              | Unique CFH Rate | Privacy Score | Change vs Real GPU         |
-| ------------------------- | --------------- | ------------- | -------------------------- |
-| **Real GPU (exposed)**    | 0.41            | 2.3           | -                          |
-| **Spoofed ANGLE (Brave)** | 0.63            | 2.4           | +0.22 unique, +0.1 privacy |
-| **Software Mesa (Tor)**   | 1.00            | 3.0           | +0.59 unique, +0.7 privacy |
-
-__Interpretation:__
-- WebGL spoofing or software fallback removes the most device-specific entropy source (GPU driver ID).
-- Tor’s Mesa/llvmpipe software renderer eliminates hardware signatures entirely, raising uniqueness to %100.
-- Brave’s ANGLE spoof still gives stable but less tracable signatures (~%53 uniqueness rise compared to exposed GPU).
-
-#### 2.4.6 Effect of Canvas Fingerprint Blocking
-
-| Canvas Status                | Unique CFH Rate | Privacy Score | Change vs Enabled           |
-| ---------------------------- | --------------- | ------------- | --------------------------- |
-| **Enabled (deterministic)**  | 0.45            | 2.2           | -                           |
-| **Randomized (Brave)**       | 0.75            | 2.3           | +0.30 unique, +0.1 privacy  |
-| **Prompt/Blocked (Firefox)** | 0.38            | 2.75          | −0.07 unique, +0.55 privacy |
-| **Fully Blocked (Tor)**      | 1.00            | 3.0           | +0.55 unique, +0.8 privacy  |
+| WebGL Status                  | Unique CFH Rate | Avg. Privacy Score | Change vs Real GPU         |
+| ----------------------------- | --------------: | -----------------: | -------------------------- |
+| **Real GPU (Chrome)**         |            0.19 |                2.5 | –                          |
+| **Spoofed ANGLE (Brave)**     |            0.81 |                2.5 | +0.62 unique, +0.0 privacy |
+| **Mixed / Partial (Firefox)** |            0.56 |                3.0 | +0.38 unique, +0.5 privacy |
+| **Software Mesa (Tor)**       |            1.00 |                3.5 | +0.81 unique, +1.0 privacy |
 
 __Interpretation:__
-- Canvas is the highest-entropy visual feature. Any change on it (randomization or blocking) greatly changes the hash.
-- Brave’s session randomization causes ~%67 uniqueness rise while retaining a stable score.
-- Tor’s full block removes the feature entirely = highest privacy and maximum CFH change.
+- Chrome (Real GPU) remains the baseline: low uniqueness (0.19) and stable fingerprints across runs.
+- Brave’s ANGLE renderer increases uniqueness to 0.81, showing that its WebGL abstraction effectively randomizes GPU exposure while maintaining the same average privacy score.
+- Firefox shows moderate gains, suggesting partial WebGL resistance depending on configuration (privacy-max).
+- Tor’s software Mesa pipeline eliminates hardware identifiers entirely, achieving perfect uniqueness (1.0) and the highest privacy score (+1.0 vs Chrome).
 
-#### 2.4.7 Effect of Audio Fingerprint Randomization / Blocking
+#### 2.4.7 Effect of Canvas Fingerprint Blocking
 
-| Audio Context Status   | Unique CFH Rate | Privacy Score | Change vs Stable           |
-| ---------------------- | --------------- | ------------- | -------------------------- |
-| **Stable (default)**   | 0.40            | 2.2           | -                          |
-| **Randomized (Brave)** | 0.72            | 2.3           | +0.32 unique, +0.1 privacy |
-| **Blocked (Tor)**      | 1.00            | 3.0           | +0.60 unique, +0.8 privacy |
+| Canvas Status                | Unique CFH Rate | Avg. Privacy Score |          Change vs Enabled |
+| ---------------------------- | --------------: | -----------------: | -------------------------: |
+| **Enabled (Chrome)**         |            0.19 |                2.5 |                          – |
+| **Randomized (Brave)**       |            0.81 |                2.5 | +0.62 unique, +0.0 privacy |
+| **Prompt/Blocked (Firefox)** |            0.56 |                3.0 | +0.38 unique, +0.5 privacy |
+| **Fully Blocked (Tor)**      |            1.00 |                3.5 | +0.81 unique, +1.0 privacy |
+
+__Interpretation:__
+- Chrome (Enabled) shows deterministic Canvas rendering, every run yields identical hashes, making it fully trackable.
+- Brave (Randomized) injects per-session noise into Canvas rendering, raising uniqueness by ~326% while maintaining similar privacy scores.
+- Firefox (Prompt/Blocked) adds confirmation prompts or masks rendering results, producing a balanced improvement in both uniqueness and privacy.
+- Tor (Fully Blocked) disables Canvas readouts entirely, achieving perfect uniqueness (1.0) and the highest privacy score (+1.0).
+
+#### 2.4.8 Effect of Audio Fingerprint Randomization / Blocking
+
+| Audio Context Status            | Unique CFH Rate | Privacy Score |           Change vs Stable |
+| ------------------------------- | --------------: | ------------: | -------------------------: |
+| **Stable (Chrome)**             |            0.19 |           2.5 |                          – |
+| **Randomized (Brave)**          |            0.81 |           2.5 | +0.62 unique, +0.0 privacy |
+| **Partially Blocked (Firefox)** |            0.56 |           3.0 | +0.37 unique, +0.5 privacy |
+| **Blocked (Tor)**               |            1.00 |           3.5 | +0.81 unique, +1.0 privacy |
 
 __Interpretation:__
 
-- Audio processing variations are minor but sensitive to privacy modes.
-- Brave’s randomized OfflineAudioContext hash raises uniqueness by %80.
-- Tor disables audio fingerprinting completely, adding %150 extra uniqueness and +0.8 privacy points.
+- Chrome (Stable) keeps the same deterministic oscillator results each run, leading to identical fingerprints.
+- Brave (Randomized) introduces small perturbations in the generated waveform via its fingerprint randomization API, increasing uniqueness significantly (~326%).
+- Firefox (Partially Blocked) limits AudioContext precision or adds timing jitter when privacy.resistFingerprinting is enabled, increasing uniqueness moderately.
+- Tor (Blocked) disables the AudioContext entirely, making the fingerprint non-reproducible.
 
 ---
-![alt text](images/uniqueness-privacy-tradeoff.png)
+__Note:__
+- Although the WebGL, Canvas, and Audio fingerprinting analyses are presented as separate sections, their numerical results are identical because they all originate from the same underlying metric: the difference of browsers and their way of preventing the vulnerability. Since for each feature, every browser uses a different method, it also correlates to the same analysis, just through another lens.
 ---
+
+#### 2.4.9 Conclusion to Our Analysis
+
+- Our analysis shows that browser fingerprinting remains one of the most persistent and sophisticated privacy threats on the modern web. Every tested browser exhibits a trade-off between privacy strength, usability, and stability. The data clearly show a positive correlation between privacy score and unique CFH rate, meaning that higher privacy configurations make fingerprints more variable and therefore less reusable for tracking. However, this comes with what we called the privacy-uniqueness paradox, some privacy tools reduce fingerprint variability (making you statistically more identifiable, but blending you in with the rest of the people), while others randomize features so strongly that sites may malfunction.
+
+- From the comparisons, Tor Browser consistently achieved perfect fingerprint isolation (unique CFH rate = 1.0), indicating that every session appears as a completely new identity. Yet, this extreme level of protection comes with usability costs: many modern sites break under Tor’s blocking of Canvas, AudioContext, and WebGL, and performance is reduced due to software rendering and network relays. Brave emerged as the best balance between privacy and everyday usability. Its built-in randomization of Canvas and Audio fingerprinting provides strong protection (unique CFH ≈ 0.8) without noticeably impairing website functionality. Firefox, with privacy-max settings and extensions such as CanvasBlocker or NoScript, can reach similar protection levels but requires manual configuration and may interfere with interactive or multimedia sites. Chrome, despite some privacy options, remains highly deterministic and therefore easiest to track.
+
+- The key takeaway is that there is no single “perfect” browser configuration, stronger privacy almost always trades off with convenience, performance, or compatibility. Users who prioritize anonymity (journalists, activists, researchers) should prefer Tor, accepting its limitations. For general users seeking both security and usability, Brave with privacy-max mode enabled and uBlock Origin or Privacy Badger installed provides the best compromise. Ultimately, the goal is not to eliminate fingerprinting entirely -an impossible task- but to make individual fingerprints less stable, less unique, and therefore less valuable to trackers. The results of this study underline that increasing randomness and reducing cross-session persistence meaningfully enhance privacy, but every additional layer of defense must be weighed against the practical needs of the user.
+
+### 2.5 Limitations and Future
+
+- Our research and analysis were heavily restricted by the data we worked with. We tried finding databases to do our research, however since we wanted to compare different configurations, we had to create our database. This led to it being not diverse and small in amount, which we believe affected our analysis.
+
+- Future of this research would be to have a greater number of test subjects and increase the amount of data we analyze. We can also add different browsers and more configurations, making our analysis more detailed and refined. Also, one thing that can be improved for the feature is to isolate features, and analyze them further instead of inferring from our tests.
 
 ## 3 Individual contributions
 
 ### 3.1 Kerem Burak Yilmaz
-During the project, my main focus was on technical implementation with a side of research on how to collect the data, and what it tells. I researched about what fingerprinting techniques are being used in the real world, and how they work, and I implemented the methods I and Manuel found. I created a [mock website](https://youjustgothacked.lol) (a basic website that has only basic HTML/CSS/JavaScript) to collect the fingerprints and show them, which became the foundations of what we currently did with the local server. I also hosted and bought the domain for the website since we want to do a live demo to everyone and show that how easy their fingerprints can be collected. We created the local server version besides this one later, since we wanted our data's to be collected and stored locally.
+During the project, my main focus was on technical implementation with a side of research on how to collect the data, and what it tells. 
 
-I also analyzed the data from the test results, trying to understand what each configuration gives us, and how each configuration and toggle affect our privacy. I created metrics to make the analysis more concrete. I also interpreted these analysis and wrote my findings.
+I researched about what fingerprinting techniques are being used in the real world, and how they work, and I implemented the methods I and Manuel found. I created a [mock website](https://youjustgothacked.lol) (a basic website that has only basic HTML/CSS/JavaScript) to collect the fingerprints and show them, which became the foundations of what we currently did with the local server. I also hosted and bought the domain for the website since we wanted to do a live demo to everyone and show that how easy their fingerprints can be collected. We created the local server version besides this one later, since we wanted our data's to be collected and stored locally.
+
+I also analyzed the data from the test results, trying to understand what each configuration gives us, and how each configuration and toggle affect our privacy. I created metrics to make the analysis more concrete. Then I isolated every variable in our testing to see how different configurations affected our metrics. I also interpreted these analysis, trying to make them more meaningful to the reader and wrote my findings.
 
 Finally, I contributed to the written report, by authoring the following sections:
 - 2.1 Fingerprint collection
 - 2.4 Data analysis
+- 2.5 Limitations and Future
 - 3.1 Individual Contribution
 
 
@@ -571,3 +980,17 @@ Finally, I contributed to the written report, by authoring the following section
 [10] https://peter.sh/experiments/chromium-command-line-switches/
 
 [11] https://github.com/arkenfox/user.js
+
+[12] https://fingerprint.com/blog/
+
+[13] https://blog.browserscan.net/docs/webgl-fingerprinting
+
+[14] https://www.adspower.com/blog/what-is-font-fingerprinting_-a-detailed-guide
+
+[15] https://www.geelark.com/blog/a-complete-guide-to-browser-fingerprints/
+
+[16] https://www.coronium.io/blog/browser-fingerprint-detection-guide
+
+[17] https://web.dev/articles/device-orientation
+
+[18] https://github.com/drbh/wasm-fingerprint
