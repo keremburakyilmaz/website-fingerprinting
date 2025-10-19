@@ -1,0 +1,12 @@
+{
+  "timestamp": "2025-10-04T20:12:42.423186",
+  "browser": "firefox",
+  "privacy_max": false,
+  "incognito": true,
+  "extensions": [
+    "ublock origin (lite)",
+    "privacy badger",
+    "canvasblocker",
+    "noscript"
+  ]
+}

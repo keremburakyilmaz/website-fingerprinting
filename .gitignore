@@ -1,0 +1,7 @@
+# Dependency directories
+node_modules/
+__pycache__/
+.vscode/
+.DS_Store
+website-calls/output.json
+/db/data.db
